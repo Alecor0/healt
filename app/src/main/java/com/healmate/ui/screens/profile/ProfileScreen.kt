@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.healmate.data.model.User
+import com.healmate.domain.model.User
 import com.healmate.ui.theme.*
 
 @Composable

@@ -18,9 +18,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.healmate.data.model.HealthRecord
-import com.healmate.data.model.Mood
-import com.healmate.data.util.MedicalValidator
+import com.healmate.domain.model.HealthRecord
+import com.healmate.domain.model.Mood
+import com.healmate.domain.validation.MedicalValidator
 import com.healmate.ui.theme.*
 import kotlin.math.roundToInt
 

@@ -1,6 +1,7 @@
 package com.healmate.data.repository
 
-import com.healmate.data.model.*
+import com.healmate.domain.model.*
+import com.healmate.domain.repository.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

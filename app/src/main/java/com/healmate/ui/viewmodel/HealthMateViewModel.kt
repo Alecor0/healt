@@ -2,7 +2,7 @@ package com.healmate.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.healmate.data.model.*
+import com.healmate.domain.model.*
 import com.healmate.data.repository.HealthMateRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

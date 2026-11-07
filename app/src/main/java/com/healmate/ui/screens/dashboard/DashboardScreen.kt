@@ -24,11 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.healmate.data.model.Appointment
-import com.healmate.data.model.Reminder
-import com.healmate.data.model.ReminderStatus
-import com.healmate.data.model.User
-import com.healmate.data.util.MedicalValidator
+import com.healmate.domain.model.Appointment
+import com.healmate.domain.model.Reminder
+import com.healmate.domain.model.ReminderStatus
+import com.healmate.domain.model.User
+import com.healmate.domain.validation.MedicalValidator
 import com.healmate.ui.theme.*
 
 @Composable

@@ -11,7 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.healmate.ui.navigation.Screen
-import com.healmate.ui.screens.MainScreen
+import com.healmate.ui.screens.main.MainScreen
 import com.healmate.ui.screens.auth.LoginScreen
 import com.healmate.ui.screens.auth.RegisterScreen
 import com.healmate.ui.theme.HealthMateTheme

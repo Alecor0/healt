@@ -1,4 +1,4 @@
-package com.healmate.ui.screens
+package com.healmate.ui.screens.main
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
