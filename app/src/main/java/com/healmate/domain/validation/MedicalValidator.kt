@@ -1,8 +1,8 @@
-package com.healmate.data.util
+package com.healmate.domain.validation
 
 /**
  * Validador clínico basado en estándares de salud (AHA, ADA, OMS)
- * para prevenir inconsistencias y anomalías fisiológicas (Edge Case 4.6 en doc.md).
+ * para prevenir inconsistencias y anomalías fisiológicas (Edge Case 4.6 en docs/requirements.md).
  */
 object MedicalValidator {
 

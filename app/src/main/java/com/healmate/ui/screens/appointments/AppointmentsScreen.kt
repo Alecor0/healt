@@ -21,8 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.healmate.data.model.Appointment
-import com.healmate.data.model.AppointmentStatus
+import com.healmate.domain.model.Appointment
+import com.healmate.domain.model.AppointmentStatus
 import com.healmate.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
