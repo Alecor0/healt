@@ -17,10 +17,6 @@ class HealthMateViewModel(
         viewModelScope, SharingStarted.WhileSubscribed(5000), repository.currentUser.value
     )
 
-    val isLoggedIn: StateFlow<Boolean> = repository.isLoggedIn.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), repository.isLoggedIn.value
-    )
-
     val isOfflineMode: StateFlow<Boolean> = repository.isOfflineMode.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), repository.isOfflineMode.value
     )
@@ -49,13 +45,7 @@ class HealthMateViewModel(
         viewModelScope, SharingStarted.WhileSubscribed(5000), repository.healthRecords.value
     )
 
-    // --- Operaciones de Autenticación y Perfil (RF-01, RF-08) ---
-    fun login(email: String, pass: String): Boolean = repository.login(email, pass)
-
-    fun register(nombre: String, email: String, pass: String): Boolean = repository.register(nombre, email, pass)
-
-    fun logout() = repository.logout()
-
+    // --- Perfil de demostración (RF-01) ---
     fun updateProfile(user: User) = repository.updateProfile(user)
 
     // --- Operaciones de Medicamentos (RF-02) ---

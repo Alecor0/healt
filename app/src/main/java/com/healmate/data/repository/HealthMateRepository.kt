@@ -4,17 +4,17 @@ import com.healmate.data.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 
-class HealthMateRepository : 
-    IAuthRepository,
+/** Datos y operaciones del prototipo de demostración. */
+class HealthMateRepository :
+    IProfileRepository,
     IMedicationRepository,
     IReminderRepository,
     IAppointmentRepository,
     IHealthRecordRepository,
     ISyncRepository {
 
-    // --- Autenticación y Perfil (RF-01, RF-08) ---
+    // --- Perfil de demostración (RF-01) ---
     private val _currentUser = MutableStateFlow<User?>(
         User(
             id = 1,
@@ -29,9 +29,6 @@ class HealthMateRepository :
         )
     )
     override val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
-
-    private val _isLoggedIn = MutableStateFlow(true)
-    override val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     // --- Sincronización y Modo Offline (RNF Portabilidad, Invariante FIFO) ---
     private val _isOfflineMode = MutableStateFlow(false)
@@ -86,33 +83,6 @@ class HealthMateRepository :
         )
     )
     override val healthRecords: StateFlow<List<HealthRecord>> = _healthRecords.asStateFlow()
-
-    // --- Implementación IAuthRepository ---
-    override fun login(email: String, pass: String): Boolean {
-        if (email.isNotBlank() && pass.isNotBlank()) {
-            _currentUser.value = User(
-                nombre = if (email.contains("@")) email.substringBefore("@").replaceFirstChar { it.uppercase() } else "Usuario",
-                email = email
-            )
-            _isLoggedIn.value = true
-            return true
-        }
-        return false
-    }
-
-    override fun register(nombre: String, email: String, pass: String): Boolean {
-        if (nombre.isNotBlank() && email.isNotBlank() && pass.isNotBlank()) {
-            _currentUser.value = User(nombre = nombre, email = email)
-            _isLoggedIn.value = true
-            return true
-        }
-        return false
-    }
-
-    override fun logout() {
-        _isLoggedIn.value = false
-        _currentUser.value = null
-    }
 
     override fun updateProfile(updatedUser: User) {
         _currentUser.value = updatedUser

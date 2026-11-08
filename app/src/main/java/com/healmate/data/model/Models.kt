@@ -39,9 +39,9 @@ data class User(
     val id: Int = 1,
     val nombre: String = "Alfredo Hernández",
     val email: String = "alfredo.hernandez@example.com",
-    val fechaNacimiento: String = "1992-05-14",
-    val peso: Double = 68.5, // kg
-    val altura: Int = 175, // cm
+    val fechaNacimiento: String,
+    val peso: Double? = null, // kg
+    val altura: Int? = null, // cm
     val alergias: String = "Penicilina",
     val condicionesCronicas: String = "Hipertensión, Diabetes Tipo 2",
     val contactoEmergencia: String = "María Hernández (Esposa) - 555-0192"

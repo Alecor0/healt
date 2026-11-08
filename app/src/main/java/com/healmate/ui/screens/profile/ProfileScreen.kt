@@ -4,8 +4,10 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
@@ -19,16 +21,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healmate.data.model.User
+import com.healmate.data.util.isBirthDateFormat
 import com.healmate.ui.theme.*
 
 @Composable
 fun ProfileScreen(
     user: User?,
-    isOffline: Boolean,
-    syncPending: Boolean,
-    onUpdateProfile: (User) -> Unit,
-    onToggleOfflineMode: () -> Unit,
-    onLogout: () -> Unit
+    onUpdateProfile: (User, () -> Unit) -> Unit,
+    onLogout: () -> Unit,
+    isDemo: Boolean = false,
+    isOffline: Boolean = false,
+    syncPending: Boolean = false,
+    saving: Boolean = false,
+    error: String? = null,
+    onClearError: () -> Unit = {},
+    onToggleOfflineMode: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showEditDialog by remember { mutableStateOf(false) }
@@ -82,7 +89,11 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
-                        onClick = { showEditDialog = true },
+                        onClick = {
+                            onClearError()
+                            showEditDialog = true
+                        },
+                        enabled = user != null && !saving,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -111,16 +122,17 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     ProfileRow("Fecha de Nacimiento", user?.fechaNacimiento ?: "No registrada")
-                    ProfileRow("Peso / Estatura", "${user?.peso ?: 0.0} kg • ${user?.altura ?: 0} cm")
-                    ProfileRow("Alergias Conocidas", user?.alergias?.ifBlank { "Ninguna reportada" } ?: "Ninguna")
-                    ProfileRow("Condiciones Crónicas", user?.condicionesCronicas?.ifBlank { "Ninguna" } ?: "Ninguna")
-                    ProfileRow("Contacto de Emergencia", user?.contactoEmergencia ?: "No asignado")
+                    ProfileRow("Peso", user?.peso?.let { "$it kg" } ?: "Sin registrar")
+                    ProfileRow("Estatura", user?.altura?.let { "$it cm" } ?: "Sin registrar")
+                    ProfileRow("Alergias conocidas", user?.alergias.orEmpty().ifBlank { "Sin registrar" })
+                    ProfileRow("Condiciones crónicas", user?.condicionesCronicas.orEmpty().ifBlank { "Sin registrar" })
+                    ProfileRow("Contacto de emergencia", user?.contactoEmergencia.orEmpty().ifBlank { "Sin registrar" })
                 }
             }
         }
 
         // Sincronización y Exportación PDF (RF-07, RNF Offline)
-        item {
+        if (isDemo) item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -149,8 +161,8 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = if (isOffline) {
-                                    if (syncPending) "Sin conexión. Acciones en cola para sincronizar." else "Sin conexión (Datos en caché local)."
-                                } else "Conectado al servidor Neon Postgres.",
+                                    if (syncPending) "Hay acciones en la cola de demostración." else "Modo sin conexión simulado."
+                                } else "Demostración con datos temporales.",
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
@@ -170,7 +182,7 @@ fun ProfileScreen(
                         onClick = {
                             Toast.makeText(
                                 context,
-                                "Generando reporte clínico en PDF con historial de medicación y signos vitales...",
+                                "La exportación PDF aún no está disponible.",
                                 Toast.LENGTH_LONG
                             ).show()
                         },
@@ -187,7 +199,7 @@ fun ProfileScreen(
         }
 
         // Seguridad y Derechos ARCO (Normativa Mexicana e Internacional)
-        item {
+        if (isDemo) item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -207,7 +219,7 @@ fun ProfileScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Cumplimiento normativo LFPDPPP (México), NOM-004-SSA3-2012 y referencias HIPAA/GDPR. Cifrado AES-256 en reposo y TLS 1.3 en tránsito.",
+                        text = "Usa datos ficticios en la demostración.",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
@@ -223,13 +235,14 @@ fun ProfileScreen(
         item {
             Button(
                 onClick = onLogout,
+                enabled = !saving,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = RedDanger),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Cerrar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(if (isDemo) "Salir de la demostración" else "Cerrar sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -237,10 +250,14 @@ fun ProfileScreen(
     if (showEditDialog && user != null) {
         EditProfileDialog(
             user = user,
-            onDismiss = { showEditDialog = false },
-            onConfirm = { updated ->
-                onUpdateProfile(updated)
+            saving = saving,
+            error = error,
+            onDismiss = {
+                onClearError()
                 showEditDialog = false
+            },
+            onConfirm = { updated ->
+                onUpdateProfile(updated) { showEditDialog = false }
             }
         )
     }
@@ -272,33 +289,55 @@ private fun ProfileRow(label: String, value: String) {
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = 13.sp, color = TextSecondary)
-        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(text = label, modifier = Modifier.weight(1f), fontSize = 13.sp, color = TextSecondary)
+        Text(text = value, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
 @Composable
 private fun EditProfileDialog(
     user: User,
+    saving: Boolean,
+    error: String?,
     onDismiss: () -> Unit,
     onConfirm: (User) -> Unit
 ) {
     var nombre by remember { mutableStateOf(user.nombre) }
-    var peso by remember { mutableStateOf(user.peso.toString()) }
-    var altura by remember { mutableStateOf(user.altura.toString()) }
+    var fecha by remember { mutableStateOf(user.fechaNacimiento) }
+    var peso by remember { mutableStateOf(user.peso?.toString().orEmpty()) }
+    var altura by remember { mutableStateOf(user.altura?.toString().orEmpty()) }
     var alergias by remember { mutableStateOf(user.alergias) }
     var condiciones by remember { mutableStateOf(user.condicionesCronicas) }
     var contacto by remember { mutableStateOf(user.contactoEmergencia) }
 
+    val weight = peso.trim().replace(',', '.').toDoubleOrNull()
+    val height = altura.trim().toIntOrNull()
+    val validWeight = peso.isBlank() || weight != null && weight.isFinite() && weight > 0
+    val validHeight = altura.isBlank() || height != null && height > 0
+    val validDate = isBirthDateFormat(fecha)
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         title = { Text("Editar Perfil Médico", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
+                    enabled = !saving,
                     label = { Text("Nombre Completo") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = fecha,
+                    onValueChange = { fecha = it },
+                    enabled = !saving,
+                    label = { Text("Nacimiento (AAAA-MM-DD)") },
+                    isError = !validDate,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -306,14 +345,18 @@ private fun EditProfileDialog(
                     OutlinedTextField(
                         value = peso,
                         onValueChange = { peso = it },
+                        enabled = !saving,
                         label = { Text("Peso (kg)") },
+                        isError = !validWeight,
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = altura,
                         onValueChange = { altura = it },
+                        enabled = !saving,
                         label = { Text("Estatura (cm)") },
+                        isError = !validHeight,
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
@@ -321,13 +364,16 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = alergias,
                     onValueChange = { alergias = it },
+                    enabled = !saving,
                     label = { Text("Alergias") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
                 OutlinedTextField(
                     value = condiciones,
                     onValueChange = { condiciones = it },
+                    enabled = !saving,
                     label = { Text("Condiciones Crónicas") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -335,6 +381,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = contacto,
                     onValueChange = { contacto = it },
+                    enabled = !saving,
                     label = { Text("Contacto de Emergencia") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -343,11 +390,14 @@ private fun EditProfileDialog(
         },
         confirmButton = {
             Button(
+                enabled = !saving && nombre.trim().length in 1..100 && contacto.length <= 100 &&
+                    validDate && validWeight && validHeight,
                 onClick = {
                     val updated = user.copy(
-                        nombre = nombre,
-                        peso = peso.toDoubleOrNull() ?: user.peso,
-                        altura = altura.toIntOrNull() ?: user.altura,
+                        nombre = nombre.trim(),
+                        fechaNacimiento = fecha.trim(),
+                        peso = weight,
+                        altura = height,
                         alergias = alergias,
                         condicionesCronicas = condiciones,
                         contactoEmergencia = contacto
@@ -356,11 +406,11 @@ private fun EditProfileDialog(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
             ) {
-                Text("Guardar Cambios")
+                Text(if (saving) "Guardando…" else "Guardar cambios")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !saving) {
                 Text("Cancelar")
             }
         }

@@ -6,20 +6,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import com.healmate.ui.navigation.Screen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.healmate.ui.screens.MainScreen
 import com.healmate.ui.screens.auth.LoginScreen
 import com.healmate.ui.screens.auth.RegisterScreen
+import com.healmate.ui.screens.profile.ProfileScreen
 import com.healmate.ui.theme.HealthMateTheme
+import com.healmate.ui.viewmodel.AccountViewModel
 import com.healmate.ui.viewmodel.HealthMateViewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: HealthMateViewModel by viewModels()
+    private val demoViewModel: HealthMateViewModel by viewModels()
+    private val accountViewModel: AccountViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,30 +35,44 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var currentScreen by remember { mutableStateOf<Screen>(Screen.Main) }
-                    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+                    var showDemo by rememberSaveable { mutableStateOf(false) }
+                    var showRegistration by rememberSaveable { mutableStateOf(false) }
+                    val account by accountViewModel.state.collectAsStateWithLifecycle()
 
-                    if (!isLoggedIn) {
-                        when (currentScreen) {
-                            Screen.Register -> RegisterScreen(
-                                onRegisterSuccess = { nombre, email, pass ->
-                                    viewModel.register(nombre, email, pass)
-                                    currentScreen = Screen.Main
+                    when {
+                        showDemo -> MainScreen(demoViewModel, onLogout = { showDemo = false })
+                        account.user != null -> Surface(Modifier.safeDrawingPadding()) {
+                            ProfileScreen(
+                                user = account.user,
+                                onUpdateProfile = accountViewModel::updateProfile,
+                                onLogout = {
+                                    accountViewModel.logout()
+                                    showRegistration = false
                                 },
-                                onNavigateToLogin = { currentScreen = Screen.Login }
-                            )
-                            else -> LoginScreen(
-                                onLoginSuccess = { email, pass ->
-                                    viewModel.login(email, pass)
-                                    currentScreen = Screen.Main
-                                },
-                                onNavigateToRegister = { currentScreen = Screen.Register }
+                                onClearError = accountViewModel::clearError,
+                                saving = account.busy,
+                                error = account.error
                             )
                         }
-                    } else {
-                        MainScreen(
-                            viewModel = viewModel,
-                            onLogout = { viewModel.logout() }
+                        showRegistration -> RegisterScreen(
+                            busy = account.busy,
+                            error = account.error,
+                            onRegister = accountViewModel::register,
+                            onNavigateToLogin = {
+                                accountViewModel.clearError()
+                                showRegistration = false
+                            }
+                        )
+                        else -> LoginScreen(
+                            configured = accountViewModel.isConfigured,
+                            busy = account.busy,
+                            error = account.error,
+                            onLogin = accountViewModel::login,
+                            onNavigateToRegister = {
+                                accountViewModel.clearError()
+                                showRegistration = true
+                            },
+                            onOpenDemo = { showDemo = true }
                         )
                     }
                 }

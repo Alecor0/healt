@@ -7,12 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
  * Interfaces segregadas siguiendo los principios SOLID (Interface Segregation y Dependency Inversion).
  */
 
-interface IAuthRepository {
+interface IProfileRepository {
     val currentUser: StateFlow<User?>
-    val isLoggedIn: StateFlow<Boolean>
-    fun login(email: String, pass: String): Boolean
-    fun register(nombre: String, email: String, pass: String): Boolean
-    fun logout()
     fun updateProfile(updatedUser: User)
 }
 

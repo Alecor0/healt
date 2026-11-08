@@ -34,7 +34,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             HealthMateTopBar(
-                title = currentScreen.title,
+                title = "${currentScreen.title} · Demo",
                 isOffline = isOffline,
                 syncPending = syncPending,
                 onOfflineToggle = { viewModel.toggleOfflineMode() }
@@ -81,7 +81,11 @@ fun MainScreen(
                     user = user,
                     isOffline = isOffline,
                     syncPending = syncPending,
-                    onUpdateProfile = { updated -> viewModel.updateProfile(updated) },
+                    onUpdateProfile = { updated, onSaved ->
+                        viewModel.updateProfile(updated)
+                        onSaved()
+                    },
+                    isDemo = true,
                     onToggleOfflineMode = { viewModel.toggleOfflineMode() },
                     onLogout = onLogout
                 )

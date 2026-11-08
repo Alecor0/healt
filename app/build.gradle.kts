@@ -1,6 +1,8 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.kotlinCompose)
 }
 
 android {
@@ -13,6 +15,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        val apiUrl = providers.gradleProperty("healthMateApiUrl").orElse("").get().trim()
+        require(apiUrl.isEmpty() || URI(apiUrl).host != null) {
+            "healthMateApiUrl debe ser una URL absoluta"
+        }
+        buildConfigField("String", "HEALTHMATE_API_URL", "\"$apiUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +39,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -50,10 +58,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.ktor.client.android)
+    implementation(libs.kotlinx.serialization.json)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

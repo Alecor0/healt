@@ -1,10 +1,12 @@
 package com.healmate.ui.screens.auth
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mail
@@ -16,8 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -28,19 +30,24 @@ import com.healmate.ui.theme.TextSecondary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (String, String) -> Unit,
-    onNavigateToRegister: () -> Unit
+    configured: Boolean,
+    busy: Boolean,
+    error: String?,
+    onLogin: (String, String) -> Unit,
+    onNavigateToRegister: () -> Unit,
+    onOpenDemo: () -> Unit
 ) {
-    val context = LocalContext.current
-
-    var email by remember { mutableStateOf("alfredo.hernandez@example.com") }
-    var password by remember { mutableStateOf("Password123!") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState()),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -88,6 +95,8 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
+                    enabled = configured && !busy,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     label = { Text("Correo Electrónico") },
                     leadingIcon = { Icon(Icons.Default.Mail, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
@@ -100,13 +109,15 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
+                    enabled = configured && !busy,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     label = { Text("Contraseña") },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null
+                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
                             )
                         }
                     },
@@ -118,21 +129,22 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                val message = error ?: if (!configured) "El servidor aún no está configurado." else null
+                if (message != null) {
+                    Text(message, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 Button(
-                    onClick = {
-                        if (email.isNotBlank() && password.isNotBlank()) {
-                            onLoginSuccess(email, password)
-                        } else {
-                            Toast.makeText(context, "Ingrese correo y contraseña válidos", Toast.LENGTH_SHORT).show()
-                        }
-                    },
+                    onClick = { onLogin(email, password) },
+                    enabled = configured && !busy && email.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(if (busy) "Iniciando sesión…" else "Iniciar sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -140,9 +152,12 @@ fun LoginScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("¿No tienes cuenta?", fontSize = 13.sp, color = TextSecondary)
                     Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(onClick = onNavigateToRegister) {
+                    TextButton(onClick = onNavigateToRegister, enabled = configured && !busy) {
                         Text("Regístrate aquí", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TealPrimary)
                     }
+                }
+                TextButton(onClick = onOpenDemo, enabled = !busy) {
+                    Text("Explorar demostración")
                 }
             }
         }
