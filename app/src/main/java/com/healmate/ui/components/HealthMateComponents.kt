@@ -1,11 +1,16 @@
 package com.healmate.ui.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -13,47 +18,60 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.healmate.ui.theme.Motion
 
-/** Tarjeta base de la app: superficie plana con borde sutil y padding uniforme. */
+/**
+ * Tarjeta base: superficie plana sin borde ni sombra sobre el fondo neutro.
+ * El color de fondo se anima cuando cambia (por ejemplo, al pausar un medicamento).
+ */
 @Composable
 fun HealthCard(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
+    val animatedColor by animateColorAsState(containerColor, Motion.standard(), label = "card")
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = animatedColor
     ) {
-        Column(modifier = Modifier.padding(16.dp), content = content)
+        Column(modifier = Modifier.padding(20.dp), content = content)
     }
 }
 
-/** Icono dentro de un círculo tonal. */
+/** Icono sobre un círculo tonal muy suave. */
 @Composable
-fun IconBadge(icon: ImageVector, tint: Color, size: Dp = 44.dp) {
+fun IconBadge(icon: ImageVector, tint: Color, size: Dp = 40.dp) {
+    val animatedTint by animateColorAsState(tint, Motion.standard(), label = "badge")
     Box(
         modifier = Modifier
             .size(size)
-            .background(tint.copy(alpha = 0.14f), CircleShape),
+            .background(animatedTint.copy(alpha = 0.10f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = tint)
+        Icon(icon, contentDescription = null, tint = animatedTint, modifier = Modifier.size(20.dp))
     }
 }
 
-/** Etiqueta compacta de estado (Activo, Confirmada, Dolor 3/10...). */
+/** Estado compacto: punto de color + texto. El texto cambia con un fundido. */
 @Composable
 fun StatusPill(text: String, color: Color) {
-    Surface(color = color.copy(alpha = 0.14f), shape = CircleShape) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = color
+    val animatedColor by animateColorAsState(color, Motion.standard(), label = "pill")
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(6.dp)
+                .background(animatedColor, CircleShape)
         )
+        Spacer(Modifier.width(6.dp))
+        AnimatedContent(
+            targetState = text,
+            transitionSpec = { fadeIn(Motion.standard(Motion.SHORT)) togetherWith fadeOut(Motion.standard(Motion.SHORT)) },
+            label = "pillText"
+        ) { value ->
+            Text(value, style = MaterialTheme.typography.labelMedium, color = animatedColor)
+        }
     }
 }
 
@@ -61,14 +79,22 @@ fun StatusPill(text: String, color: Color) {
 fun SectionHeader(
     title: String,
     actionLabel: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .heightIn(min = 40.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         if (actionLabel != null) {
             TextButton(onClick = onAction) { Text(actionLabel) }
         }
@@ -77,20 +103,20 @@ fun SectionHeader(
 
 @Composable
 fun EmptyState(icon: ImageVector, message: String) {
-    HealthCard {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            IconBadge(icon, MaterialTheme.colorScheme.secondary)
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

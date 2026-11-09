@@ -1,14 +1,15 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert
 from starlette.concurrency import run_in_threadpool
 
 from ..dependencies import Db, Secret, unauthorized
 from ..google_identity import GoogleUnavailable, InvalidGoogleIdentity, verify_google_identity
 from ..models import GoogleChallenge, RefreshSession, User
+from ..profiles import create_account, load_profile
 from ..schemas import GoogleChallengeResponse, GoogleLogin, Login, RefreshRequest, Registration, Tokens
 from ..security import TokenError, decode_token, issue_tokens, passwords
 
@@ -18,7 +19,7 @@ DUMMY_HASH = "$argon2id$v=19$m=19456,t=2,p=1$RCiFcI5xrtX6v9d6DyEkxA$5YhInzZXPC2M
 
 
 async def start_session(user: User, db: Db, secret: Secret, response: Response) -> Tokens:
-    tokens, session = issue_tokens(user, secret)
+    tokens, session = issue_tokens(await load_profile(db, user), secret)
     db.add(session)
     await db.commit()
     response.headers["Cache-Control"] = "no-store"
@@ -28,16 +29,10 @@ async def start_session(user: User, db: Db, secret: Secret, response: Response) 
 @router.post("/registro", status_code=201)
 async def register(body: Registration, response: Response, db: Db, secret: Secret) -> Tokens:
     password_hash = await run_in_threadpool(passwords.hash, body.password.get_secret_value())
-    result = await db.execute(
-        insert(User)
-        .values(
-            nombre=body.nombre, email=body.email, fecha_nacimiento=body.fecha_nacimiento,
-            password_hash=password_hash,
-        )
-        .on_conflict_do_nothing(constraint="uq_usuarios_email")
-        .returning(User)
+    user = await create_account(
+        db, email=body.email, password_hash=password_hash,
+        nombre=body.nombre, fecha_nacimiento=body.fecha_nacimiento,
     )
-    user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(409, "El correo ya está registrado")
     return await start_session(user, db, secret, response)
@@ -46,11 +41,10 @@ async def register(body: Registration, response: Response, db: Db, secret: Secre
 @router.post("/login")
 async def login(body: Login, response: Response, db: Db, secret: Secret) -> Tokens:
     user = await db.scalar(select(User).where(User.email == body.email))
-    password_hash = user.password_hash if user else None
     valid = await run_in_threadpool(
-        passwords.verify, body.password.get_secret_value(), password_hash or DUMMY_HASH
+        passwords.verify, body.password.get_secret_value(), user.password_hash if user else DUMMY_HASH
     )
-    if user is None or password_hash is None or not valid:
+    if user is None or not valid or not user.estado:
         raise unauthorized()
     return await start_session(user, db, secret, response)
 
@@ -93,7 +87,7 @@ async def login_google(
         GoogleChallenge.nonce == identity.nonce,
         GoogleChallenge.vence_en > func.now(),
     )
-    user = await db.scalar(select(User).where(User.google_sub == identity.sub))
+    user = await db.scalar(select(User).where(User.google_id == identity.sub))
     email = identity.email.lower()
     if user is None and body.fecha_nacimiento is None:
         if await db.scalar(select(GoogleChallenge.nonce).where(*active_challenge)) is None:
@@ -110,19 +104,18 @@ async def login_google(
 
     if user is None:
         name = identity.name.strip() or email.split("@", 1)[0]
-        user = await db.scalar(
-            insert(User)
-            .values(
-                nombre=name[:100], email=email, google_sub=identity.sub,
-                fecha_nacimiento=body.fecha_nacimiento,
-            )
-            .on_conflict_do_nothing()
-            .returning(User)
+        # El esquema exige contraseña: se guarda el hash de un valor aleatorio que nadie conoce.
+        unusable = await run_in_threadpool(passwords.hash, secrets.token_urlsafe(32))
+        user = await create_account(
+            db, email=email, password_hash=unusable, nombre=name[:100],
+            fecha_nacimiento=body.fecha_nacimiento, google_id=identity.sub,
         )
         if user is None:
-            user = await db.scalar(select(User).where(User.google_sub == identity.sub))
+            user = await db.scalar(select(User).where(User.google_id == identity.sub))
         if user is None:
             raise HTTPException(409, "Accede con el método original de la cuenta")
+    if not user.estado:
+        raise unauthorized()
     return await start_session(user, db, secret, response)
 
 
@@ -133,7 +126,7 @@ async def refresh(body: RefreshRequest, response: Response, db: Db, secret: Secr
     except TokenError as exc:
         raise unauthorized() from exc
     user = await db.get(User, user_id, with_for_update={"read": True, "key_share": True})
-    if user is None:
+    if user is None or not user.estado:
         raise unauthorized()
     consumed = await db.scalar(
         delete(RefreshSession)

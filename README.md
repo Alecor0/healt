@@ -8,21 +8,27 @@ El flujo conectado permite crear una cuenta, iniciar sesión y consultar o edita
 
 ## Ejecutar en Windows
 
-Con PostgreSQL 15 o posterior, crea una base vacía llamada `healthmate`. Usa las credenciales de tu instancia local o la cadena de conexión directa de una rama de desarrollo de Neon. Guarda la cadena en el entorno del backend.
+El backend usa el esquema de la base Neon del proyecto: `usuarios`, `perfiles`, `roles`, `usuario_rol`, `alergias`, `perfil_alergias` y `antecedentes`. Crea `backend/.env` (está en `.gitignore`, nunca lo subas) con estas variables:
+
+```
+DATABASE_URL=postgresql://USUARIO:CLAVE@HOST/neondb?sslmode=require&channel_binding=require
+JWT_SECRET=<64 caracteres hexadecimales: python -c "import secrets; print(secrets.token_hex(32))">
+HEALTHMATE_TEST_DATABASE_URL=postgresql://USUARIO:CLAVE@HOST/healthmate_test?sslmode=require&channel_binding=require
+```
 
 ```powershell
 Set-Location backend
 py -3.12 -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-
-$env:DATABASE_URL = 'postgresql://USUARIO:CLAVE@127.0.0.1:5432/healthmate?sslmode=disable'
-$env:JWT_SECRET = & .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
+Get-Content .env | ForEach-Object { $k, $v = $_ -split '=', 2; Set-Item "env:$k" $v }
 
 & .\.venv\Scripts\python.exe -m alembic upgrade head
 & .\.venv\Scripts\python.exe -m uvicorn healthmate.main:app --host 127.0.0.1 --port 8000
 ```
 
-La documentación interactiva de la API está en [Swagger local](http://127.0.0.1:8000/docs). En Neon, usa el host directo y `sslmode=verify-full` para aplicar las migraciones. El backend verifica el certificado y requiere TLS 1.3 para conexiones remotas.
+La migración `0001_esquema_neon` describe las tablas que ya existen en Neon; en una base nueva o de pruebas las crea. En una base Neon que ya tiene esas tablas y nunca usó Alembic, márcala antes como aplicada con `python -m alembic stamp 0001_esquema_neon`. La `0002_sesiones_y_perfil` solo agrega las sesiones, los desafíos de Google y las columnas `peso`, `altura` y `contacto_emergencia` de `perfiles`.
+
+La documentación interactiva de la API está en [Swagger local](http://127.0.0.1:8000/docs). El backend verifica el certificado y requiere TLS 1.3 para conexiones remotas.
 
 En otra terminal, desde la raíz del repositorio, compila el APK para el emulador Android.
 
@@ -31,6 +37,18 @@ En otra terminal, desde la raíz del repositorio, compila el APK para el emulado
 ```
 
 El APK queda en `app/build/outputs/apk/debug/`. La excepción HTTP se limita a direcciones locales en compilaciones de depuración. Configura `healthMateApiUrl` con la URL HTTPS de la API al compilar para un entorno remoto. La app mantiene los tokens en memoria durante la sesión.
+
+## Publicar la API en Render
+
+[render.yaml](render.yaml) define el servicio `healthmate-api` (Python 3.12, región Ohio, plan gratuito). En Render elige **New > Blueprint**, conecta este repositorio y la rama, y pega la cadena de Neon en `DATABASE_URL`. Render genera `JWT_SECRET`. Cada push a esa rama vuelve a desplegar la API y aplica las migraciones pendientes al arrancar.
+
+Con la URL HTTPS que asigna Render, compila el APK para un dispositivo real:
+
+```powershell
+.\gradlew.bat :app:assembleDebug '-PhealthMateApiUrl=https://healthmate-api.onrender.com'
+```
+
+En el plan gratuito la API se duerme tras unos 15 minutos sin uso; la primera petición después puede tardar hasta un minuto.
 
 ## Activar el inicio de sesión con Google
 

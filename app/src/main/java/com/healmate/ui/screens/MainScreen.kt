@@ -1,9 +1,11 @@
 package com.healmate.ui.screens
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,6 +17,7 @@ import com.healmate.ui.screens.dashboard.DashboardScreen
 import com.healmate.ui.screens.health.HealthScreen
 import com.healmate.ui.screens.medications.MedicationsScreen
 import com.healmate.ui.screens.profile.ProfileScreen
+import com.healmate.ui.theme.Motion
 import com.healmate.ui.viewmodel.HealthMateViewModel
 
 @Composable
@@ -33,6 +36,7 @@ fun MainScreen(
     val healthRecords by viewModel.healthRecords.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             HealthMateTopBar(
                 title = currentScreen.title,
@@ -48,11 +52,21 @@ fun MainScreen(
             )
         }
     ) { innerPadding ->
-        Crossfade(
+        AnimatedContent(
             targetState = currentScreen,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background),
+            transitionSpec = {
+                // Desliza un poco hacia el lado de la pestaña elegida, con fundido.
+                val direction = Screen.tabDirection(initialState, targetState)
+                val enter = fadeIn(Motion.standard()) +
+                    slideInHorizontally(Motion.standard()) { width -> direction * width / 8 }
+                val exit = fadeOut(Motion.standard(Motion.SHORT)) +
+                    slideOutHorizontally(Motion.standard()) { width -> -direction * width / 8 }
+                enter togetherWith exit
+            },
             label = "tab"
         ) { screen ->
             Box(Modifier.fillMaxSize()) {

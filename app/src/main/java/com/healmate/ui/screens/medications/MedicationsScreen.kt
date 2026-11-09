@@ -73,10 +73,10 @@ fun MedicationsScreen(
                 )
             }
 
-            item { SectionHeader("Activos (${activeMedications.size})") }
+            item(key = "activeHeader") { SectionHeader("Activos (${activeMedications.size})", modifier = Modifier.animateItem()) }
 
             if (activeMedications.isEmpty()) {
-                item {
+                item(key = "activeEmpty") {
                     EmptyState(
                         Icons.Default.Medication,
                         if (searchQuery.isBlank()) "No tienes medicamentos activos."
@@ -86,6 +86,7 @@ fun MedicationsScreen(
             }
             items(activeMedications, key = { it.id }) { med ->
                 MedicationCard(
+                    modifier = Modifier.animateItem(),
                     medication = med,
                     onTogglePause = { onToggleActive(med.id) },
                     onDelete = { pendingDelete = med }
@@ -94,9 +95,10 @@ fun MedicationsScreen(
 
             // Inactivos / Finalizados (caso límite 4.4)
             if (inactiveMedications.isNotEmpty()) {
-                item { SectionHeader("Inactivos / Finalizados (${inactiveMedications.size})") }
+                item(key = "inactiveHeader") { SectionHeader("Inactivos / Finalizados (${inactiveMedications.size})", modifier = Modifier.animateItem()) }
                 items(inactiveMedications, key = { it.id }) { med ->
                     MedicationCard(
+                        modifier = Modifier.animateItem(),
                         medication = med,
                         onTogglePause = { onToggleActive(med.id) },
                         onDelete = { pendingDelete = med }
@@ -134,16 +136,18 @@ fun MedicationsScreen(
 private fun MedicationCard(
     medication: Medication,
     onTogglePause: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val active = medication.activo
     val accent = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
     HealthCard(
+        modifier = modifier,
         containerColor = if (active) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(Icons.Default.Medication, accent, size = 48.dp)
+            IconBadge(Icons.Default.Medication, accent)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(medication.nombre, style = MaterialTheme.typography.titleMedium)
@@ -178,8 +182,7 @@ private fun MedicationCard(
             InfoItem(Icons.Default.EventBusy, "Hasta $it")
         }
 
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,

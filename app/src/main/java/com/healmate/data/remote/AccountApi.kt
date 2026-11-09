@@ -33,8 +33,9 @@ internal class AccountApi(
     private val client: HttpClient = HttpClient(Android) {
         followRedirects = false
         install(HttpTimeout) {
-            requestTimeoutMillis = 15_000
-            connectTimeoutMillis = 10_000
+            // El plan gratuito de Render duerme la API; la primera petición puede tardar ~1 min.
+            requestTimeoutMillis = 60_000
+            connectTimeoutMillis = 30_000
         }
     }
 ) {
@@ -103,11 +104,11 @@ private fun JsonObject.toSession() = AccountSession(
     user = getValue("usuario").jsonObject.toUser()
 )
 
+// El id remoto es un UUID y la app no lo usa: la sesión se identifica con los tokens.
 private fun JsonObject.toUser() = User(
-    id = getValue("id").jsonPrimitive.int,
     nombre = getValue("nombre").jsonPrimitive.content,
     email = getValue("email").jsonPrimitive.content,
-    fechaNacimiento = getValue("fecha_nacimiento").jsonPrimitive.content,
+    fechaNacimiento = getValue("fecha_nacimiento").jsonPrimitive.contentOrNull.orEmpty(),
     peso = getValue("peso").jsonPrimitive.doubleOrNull,
     altura = getValue("altura").jsonPrimitive.intOrNull,
     alergias = getValue("alergias").jsonPrimitive.content,

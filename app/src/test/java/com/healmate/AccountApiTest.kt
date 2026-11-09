@@ -20,7 +20,7 @@ import org.junit.Test
 
 class AccountApiTest {
     private val profile = """
-        {"id":7,"nombre":"Ana","email":"ana@example.com","fecha_nacimiento":"1992-05-14",
+        {"id":"6f1c2a52-5d8e-4b8a-9a43-2f0d6f7c1b11","nombre":"Ana","email":"ana@example.com","fecha_nacimiento":"1992-05-14",
         "peso":null,"altura":null,"alergias":"","condiciones_cronicas":"","contacto_emergencia":""}
     """.trimIndent()
 
@@ -68,7 +68,7 @@ class AccountApiTest {
         val api = AccountApi("https://example.com", HttpClient(engine))
         try {
             val session = api.login(" ana@example.com ", "password")
-            assertEquals(7, session.user.id)
+            assertEquals("Ana", session.user.nombre)
             assertEquals("1992-05-14", session.user.fechaNacimiento)
             assertEquals(session, api.register("Ana", "ana@example.com", "password", "1992-05-14"))
             assertEquals(session.user.copy(peso = 64.5), api.updateProfile(session, session.user))

@@ -2,6 +2,8 @@ package com.healmate.ui.screens.appointments
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -26,6 +29,7 @@ import com.healmate.data.model.Appointment
 import com.healmate.data.model.AppointmentStatus
 import com.healmate.data.util.CalendarMath
 import com.healmate.ui.components.*
+import com.healmate.ui.theme.Motion
 
 // Mes de la demostración: los datos de ejemplo están en octubre de 2026.
 private const val DEMO_YEAR = 2026
@@ -79,10 +83,14 @@ fun AppointmentsScreen(
             item { SectionHeader("$selectedDay de octubre · ${filteredAppointments.size} citas") }
 
             if (filteredAppointments.isEmpty()) {
-                item { EmptyState(Icons.Default.EventAvailable, "No hay citas programadas para este día.") }
+                item(key = "empty") { EmptyState(Icons.Default.EventAvailable, "No hay citas programadas para este día.") }
             }
             items(filteredAppointments, key = { it.id }) { app ->
-                AppointmentCard(appointment = app, onCancel = { pendingCancel = app })
+                AppointmentCard(
+                    appointment = app,
+                    onCancel = { pendingCancel = app },
+                    modifier = Modifier.animateItem()
+                )
             }
         }
     }
@@ -151,11 +159,19 @@ private fun MonthCalendar(
                         if (day != null) {
                             val selected = day == selectedDay
                             val hasAppointment = day in daysWithAppointments
+                            val circle by animateColorAsState(
+                                if (selected) colors.primary else Color.Transparent, Motion.gentle(), label = "day"
+                            )
+                            val dayText by animateColorAsState(
+                                if (selected) colors.onPrimary else colors.onSurface, Motion.gentle(), label = "dayText"
+                            )
+                            val scale by animateFloatAsState(if (selected) 1f else 0.92f, Motion.playful(), label = "dayScale")
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
+                                    .graphicsLayer { scaleX = scale; scaleY = scale }
                                     .clip(CircleShape)
-                                    .background(if (selected) colors.primary else Color.Transparent)
+                                    .background(circle)
                                     .clickable { onSelectDay(day) }
                                     .semantics {
                                         contentDescription = "$day de octubre" + if (hasAppointment) ", con citas" else ""
@@ -167,7 +183,7 @@ private fun MonthCalendar(
                                         text = day.toString(),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (selected || hasAppointment) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (selected) colors.onPrimary else colors.onSurface
+                                        color = dayText
                                     )
                                     Box(
                                         Modifier
@@ -194,7 +210,8 @@ private fun MonthCalendar(
 @Composable
 private fun AppointmentCard(
     appointment: Appointment,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val cancelled = appointment.estado == AppointmentStatus.CANCELADA
@@ -206,6 +223,7 @@ private fun AppointmentCard(
     }
 
     HealthCard(
+        modifier = modifier,
         containerColor = if (cancelled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -234,8 +252,7 @@ private fun AppointmentCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween

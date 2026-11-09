@@ -1,6 +1,6 @@
 package com.healmate.ui.screens.auth
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,14 +9,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.healmate.ui.components.BrandLabel
 import com.healmate.ui.components.BrandPanel
 import com.healmate.ui.theme.BrandMint
+import com.healmate.ui.theme.Motion
 
 @Composable
 internal fun AuthLayout(
@@ -26,9 +29,12 @@ internal fun AuthLayout(
     form: @Composable ColumnScope.() -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
+    // El formulario sube y aparece suavemente al abrir la pantalla.
+    val entrance = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { entrance.animateTo(1f, Motion.standard(Motion.LONG)) }
     Box(
         modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(colors.surfaceVariant, colors.background)))
+            .background(colors.background)
             .safeDrawingPadding()
             .imePadding(),
         contentAlignment = Alignment.Center
@@ -58,11 +64,15 @@ internal fun AuthLayout(
                 Text(description, color = Color(0xFFE8E1FA), style = MaterialTheme.typography.bodyMedium)
             }
 
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = entrance.value
+                        translationY = (1f - entrance.value) * 24.dp.toPx()
+                    },
                 shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                color = colors.surface
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),

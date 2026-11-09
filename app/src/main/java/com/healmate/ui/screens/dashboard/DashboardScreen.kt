@@ -3,7 +3,12 @@ package com.healmate.ui.screens.dashboard
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.PathMeasure
+import com.healmate.ui.theme.Motion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -77,12 +82,13 @@ fun DashboardScreen(
             SectionHeader("Próximos recordatorios", "Ver todos", onNavigateToMedications)
         }
         if (pendingReminders.isEmpty()) {
-            item {
+            item(key = "remindersEmpty") {
                 EmptyState(Icons.Default.TaskAlt, "Completaste todos tus recordatorios de medicación de hoy.")
             }
         } else {
             items(pendingReminders, key = { it.id }) { reminder ->
                 ReminderCard(
+                    modifier = Modifier.animateItem(),
                     reminder = reminder,
                     onTake = { onUpdateReminderStatus(reminder.id, ReminderStatus.TOMADO) },
                     onSnooze = { onSnoozeReminder(reminder.id) },
@@ -121,11 +127,25 @@ private fun SummaryPanel(
     adherence: Int,
     pending: Int
 ) {
+    // Arranca en 0 y se llena al entrar; luego sigue cada cambio de adherencia.
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val progress by animateFloatAsState(
+        if (started) adherence / 100f else 0f, Motion.standard(Motion.LONG), label = "adherence"
+    )
+    val shownPercent by animateIntAsState(
+        if (started) adherence else 0, Motion.standard(Motion.LONG), label = "adherencePercent"
+    )
+
     BrandPanel {
         BrandLabel("RESUMEN DIARIO")
         Text(text = "Hola, $name", style = MaterialTheme.typography.headlineSmall)
-        Text("13 de octubre de 2026", style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(4.dp))
+        Text(
+            "13 de octubre de 2026",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.72f)
+        )
+        Spacer(Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom
@@ -138,16 +158,16 @@ private fun SummaryPanel(
                 )
             }
             Text(
-                text = "$adherence%",
+                text = "$shownPercent%",
                 color = BrandMint,
                 style = MaterialTheme.typography.displaySmall
             )
         }
         LinearProgressIndicator(
-            progress = { adherence / 100f },
+            progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp),
+                .height(6.dp),
             color = BrandMint,
             trackColor = Color.White.copy(alpha = 0.18f),
             strokeCap = StrokeCap.Round,
@@ -161,9 +181,10 @@ private fun ReminderCard(
     reminder: Reminder,
     onTake: () -> Unit,
     onSnooze: () -> Unit,
-    onOmit: () -> Unit
+    onOmit: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    HealthCard {
+    HealthCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(Icons.Default.Medication, MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
@@ -183,11 +204,11 @@ private fun ReminderCard(
         // Acciones conformes a RF-03: Tomada, Pospuesta, Omitida
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
                 onClick = onTake,
-                modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary,
                     contentColor = MaterialTheme.colorScheme.onSecondary
@@ -197,11 +218,10 @@ private fun ReminderCard(
                 Spacer(Modifier.width(6.dp))
                 Text("Tomada")
             }
-            OutlinedButton(onClick = onSnooze, modifier = Modifier.weight(1f)) {
-                Text("Posponer 15 min", maxLines = 1)
-            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onSnooze) { Text("+15 min") }
             TextButton(onClick = onOmit) {
-                Text("Omitir", color = MaterialTheme.colorScheme.error)
+                Text("Omitir", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -229,23 +249,21 @@ private fun NextAppointmentCard(appointment: Appointment) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(
                 onClick = {
                     val uri = Uri.parse("geo:0,0?q=${Uri.encode(appointment.lugar)}")
                     context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                },
-                modifier = Modifier.weight(1f)
+                }
             ) {
                 Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Ver mapa")
             }
-            FilledTonalButton(
+            TextButton(
                 onClick = {
                     Toast.makeText(context, "Contactando a ${appointment.especialista}...", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.weight(1f)
+                }
             ) {
                 Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
@@ -296,11 +314,16 @@ private fun PainTrendChart(points: List<Float>, modifier: Modifier = Modifier) {
     val line = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
     val dotFill = MaterialTheme.colorScheme.surface
+
+    // La línea se dibuja de izquierda a derecha cada vez que cambian los datos.
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(points) {
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, Motion.standard(Motion.LONG + 200))
+    }
+
     Canvas(modifier) {
-        listOf(0f, 0.5f, 1f).forEach { level ->
-            val y = size.height * level
-            drawLine(grid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
-        }
+        drawLine(grid, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx())
         if (points.isEmpty()) return@Canvas
         val pad = 6.dp.toPx()
         val offsets = points.mapIndexed { index, value ->
@@ -312,10 +335,17 @@ private fun PainTrendChart(points: List<Float>, modifier: Modifier = Modifier) {
             moveTo(offsets.first().x, offsets.first().y)
             offsets.drop(1).forEach { lineTo(it.x, it.y) }
         }
-        drawPath(path, line, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+        val measure = PathMeasure().apply { setPath(path, false) }
+        val visible = Path()
+        measure.getSegment(0f, measure.length * reveal.value, visible, true)
+        drawPath(visible, line, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+
+        val revealX = offsets.first().x + (offsets.last().x - offsets.first().x) * reveal.value
         offsets.forEach {
-            drawCircle(line, radius = 5.dp.toPx(), center = it)
-            drawCircle(dotFill, radius = 2.5.dp.toPx(), center = it)
+            if (it.x <= revealX + 0.5f) {
+                drawCircle(line, radius = 4.dp.toPx(), center = it)
+                drawCircle(dotFill, radius = 2.dp.toPx(), center = it)
+            }
         }
     }
 }

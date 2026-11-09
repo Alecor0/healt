@@ -15,11 +15,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-        val apiUrl = providers.gradleProperty("healthMateApiUrl").orElse("").get().trim()
-        require(apiUrl.isEmpty() || URI(apiUrl).host != null) {
-            "healthMateApiUrl debe ser una URL absoluta"
-        }
-        buildConfigField("String", "HEALTHMATE_API_URL", "\"$apiUrl\"")
         val googleClientId = providers.gradleProperty("healthMateGoogleClientId").orElse("").get().trim()
         require(googleClientId.isEmpty() || googleClientId.matches(Regex("[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com"))) {
             "healthMateGoogleClientId debe ser el ID del cliente OAuth web de Google"
@@ -29,8 +24,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // URL de la API. Si no se pasa -PhealthMateApiUrl, las compilaciones de depuración
+    // (incluido el botón Run de Android Studio) usan la API local vista desde el emulador.
+    val apiUrl = providers.gradleProperty("healthMateApiUrl").orElse("").get().trim()
+    require(apiUrl.isEmpty() || URI(apiUrl).host != null) {
+        "healthMateApiUrl debe ser una URL absoluta"
+    }
     buildTypes {
+        debug {
+            val debugApiUrl = apiUrl.ifEmpty { "http://10.0.2.2:8000" }
+            buildConfigField("String", "HEALTHMATE_API_URL", "\"$debugApiUrl\"")
+        }
         release {
+            buildConfigField("String", "HEALTHMATE_API_URL", "\"$apiUrl\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

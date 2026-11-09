@@ -40,7 +40,7 @@ async def get_user(
     except TokenError as exc:
         raise unauthorized() from exc
     user = await db.get(User, user_id)
-    if user is None:
+    if user is None or not user.estado:
         raise unauthorized()
     return user
 

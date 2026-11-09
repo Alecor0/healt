@@ -1,6 +1,8 @@
 package com.healmate.ui.screens.health
 
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -25,6 +28,7 @@ import com.healmate.data.util.VitalsErrors
 import com.healmate.data.util.VitalsFormValidator
 import com.healmate.data.util.VitalsInput
 import com.healmate.ui.components.*
+import com.healmate.ui.theme.Motion
 import kotlin.math.roundToInt
 
 @Composable
@@ -45,7 +49,7 @@ fun HealthScreen(
 
     val pain = dolorEscala.roundToInt()
     val severity = MedicalValidator.painSeverity(pain)
-    val severityColor = severityColor(severity)
+    val severityColor by animateColorAsState(severityColor(severity), Motion.gentle(), label = "severity")
 
     LazyColumn(
         modifier = Modifier
@@ -67,7 +71,17 @@ fun HealthScreen(
                 Spacer(Modifier.height(20.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Nivel de dolor", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    Text("$pain/10", style = MaterialTheme.typography.titleMedium, color = severityColor)
+                    AnimatedContent(
+                        targetState = pain,
+                        transitionSpec = {
+                            val up = targetState > initialState
+                            (slideInVertically { if (up) it else -it } + fadeIn()) togetherWith
+                                (slideOutVertically { if (up) -it else it } + fadeOut())
+                        },
+                        label = "pain"
+                    ) { value ->
+                        Text("$value/10", style = MaterialTheme.typography.titleMedium, color = severityColor)
+                    }
                     Spacer(Modifier.width(8.dp))
                     StatusPill(severity.label, severityColor)
                 }
@@ -188,10 +202,10 @@ fun HealthScreen(
         item { SectionHeader("Historial (${healthRecords.size})") }
 
         if (healthRecords.isEmpty()) {
-            item { EmptyState(Icons.Default.MonitorHeart, "Tus registros guardados aparecerán aquí.") }
+            item(key = "empty") { EmptyState(Icons.Default.MonitorHeart, "Tus registros guardados aparecerán aquí.") }
         }
         items(healthRecords, key = { it.id }) { record ->
-            HealthRecordCard(record)
+            HealthRecordCard(record, Modifier.animateItem())
         }
     }
 }
@@ -206,21 +220,21 @@ private fun severityColor(severity: PainSeverity): Color = when (severity) {
 @Composable
 private fun MoodOption(mood: Mood, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
+    val container by animateColorAsState(
+        if (selected) colors.primaryContainer else colors.surfaceVariant, Motion.gentle(), label = "mood"
+    )
+    val emojiScale by animateFloatAsState(if (selected) 1.15f else 1f, Motion.playful(), label = "moodScale")
     Surface(
         onClick = onClick,
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        color = if (selected) colors.primaryContainer else colors.surface,
-        border = androidx.compose.foundation.BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            if (selected) colors.primary else colors.outlineVariant
-        )
+        color = container
     ) {
         Column(
             modifier = Modifier.padding(vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(mood.icon, fontSize = 24.sp)
+            Text(mood.icon, fontSize = 24.sp, modifier = Modifier.graphicsLayer { scaleX = emojiScale; scaleY = emojiScale })
             Text(
                 mood.displayName,
                 style = MaterialTheme.typography.labelSmall,
@@ -253,9 +267,9 @@ private fun VitalField(
 }
 
 @Composable
-private fun HealthRecordCard(record: HealthRecord) {
+private fun HealthRecordCard(record: HealthRecord, modifier: Modifier = Modifier) {
     val severity = MedicalValidator.painSeverity(record.dolorEscala)
-    HealthCard {
+    HealthCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(record.estadoAnimo.icon, fontSize = 28.sp)
             Spacer(Modifier.width(12.dp))

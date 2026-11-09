@@ -22,6 +22,7 @@ import com.healmate.data.model.User
 import com.healmate.data.util.isBirthDateFormat
 import com.healmate.ui.components.BrandLabel
 import com.healmate.ui.components.BrandPanel
+import com.healmate.ui.components.HealthCard
 import com.healmate.ui.theme.BrandInk
 import com.healmate.ui.theme.BrandMint
 
@@ -45,9 +46,9 @@ fun ProfileScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             BrandPanel {
@@ -93,13 +94,8 @@ fun ProfileScreen(
 
         // Ficha Médica Digital (RF-01)
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            HealthCard {
+                Column {
                     Text(
                         text = "Ficha de salud",
                         style = MaterialTheme.typography.titleMedium
@@ -115,7 +111,6 @@ fun ProfileScreen(
                         "Contacto de emergencia" to user?.contactoEmergencia.orEmpty().ifBlank { "Sin registrar" }
                     )
                     fields.forEachIndexed { index, (label, value) ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ProfileRow(label, value)
                     }
                 }
@@ -124,13 +119,8 @@ fun ProfileScreen(
 
         // Sincronización y Exportación PDF (RF-07, RNF Offline)
         if (isDemo) item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            HealthCard {
+                Column {
                     Text(
                         text = "Conectividad y Exportación",
                         fontSize = 16.sp,
@@ -164,9 +154,7 @@ fun ProfileScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Botón de exportar PDF (RF-07)
                     Button(
@@ -194,13 +182,8 @@ fun ProfileScreen(
 
         // Seguridad y Derechos ARCO (Normativa Mexicana e Internacional)
         if (isDemo) item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            HealthCard {
+                Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
