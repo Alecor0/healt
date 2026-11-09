@@ -1,24 +1,15 @@
 package com.healmate.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.healmate.ui.navigation.Screen
-import com.healmate.ui.theme.TealPrimary
 
 @Composable
 fun HealthMateBottomBar(
@@ -27,7 +18,7 @@ fun HealthMateBottomBar(
 ) {
     val items = listOf(
         NavigationItem(Screen.Dashboard, "Inicio", Icons.Default.Home),
-        NavigationItem(Screen.Medications, "Medicamentos", Icons.Default.Medication),
+        NavigationItem(Screen.Medications, "Medicación", Icons.Default.Medication),
         NavigationItem(Screen.Appointments, "Citas", Icons.Default.Event),
         NavigationItem(Screen.Health, "Salud", Icons.Default.Favorite),
         NavigationItem(Screen.Profile, "Perfil", Icons.Default.Person)
@@ -35,7 +26,7 @@ fun HealthMateBottomBar(
 
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
+        tonalElevation = 0.dp
     ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.screen.route
@@ -45,18 +36,25 @@ fun HealthMateBottomBar(
                 icon = {
                     Icon(
                         imageVector = item.icon,
-                        contentDescription = item.label,
-                        tint = if (isSelected) TealPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        contentDescription = null
                     )
                 },
                 label = {
                     Text(
                         text = item.label,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) TealPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }
@@ -78,35 +76,28 @@ fun HealthMateTopBar(
 ) {
     TopAppBar(
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column {
                 Text(
                     text = title,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleLarge
                 )
-                if (isOffline) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = if (syncPending) "Offline (Pendiente)" else "Modo Offline",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                Text(
+                    text = when {
+                        syncPending -> "Demostración · cambios pendientes"
+                        isOffline -> "Demostración · modo sin conexión"
+                        else -> "HealthMate · Demostración"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         actions = {
             IconButton(onClick = onOfflineToggle) {
                 Icon(
                     imageVector = if (isOffline) Icons.Default.WifiOff else Icons.Default.Wifi,
-                    contentDescription = "Estado de Red",
-                    tint = if (isOffline) MaterialTheme.colorScheme.error else TealPrimary
+                    contentDescription = if (isOffline) "Desactivar modo sin conexión" else "Activar modo sin conexión",
+                    tint = if (isOffline) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
             }
         },

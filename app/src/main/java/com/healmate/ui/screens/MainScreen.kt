@@ -1,5 +1,6 @@
 package com.healmate.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -34,7 +35,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             HealthMateTopBar(
-                title = "${currentScreen.title} · Demo",
+                title = currentScreen.title,
                 isOffline = isOffline,
                 syncPending = syncPending,
                 onOfflineToggle = { viewModel.toggleOfflineMode() }
@@ -47,57 +48,54 @@ fun MainScreen(
             )
         }
     ) { innerPadding ->
-        Box(
+        Crossfade(
+            targetState = currentScreen,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (currentScreen) {
-                Screen.Dashboard -> DashboardScreen(
-                    user = user,
-                    reminders = reminders,
-                    appointments = appointments,
-                    onUpdateReminderStatus = { id, status -> viewModel.updateReminderStatus(id, status) },
-                    onSnoozeReminder = { id -> viewModel.snoozeReminder(id, 15) },
-                    onNavigateToMedications = { currentScreen = Screen.Medications },
-                    onNavigateToAppointments = { currentScreen = Screen.Appointments }
-                )
-                Screen.Medications -> MedicationsScreen(
-                    medications = medications,
-                    onAddMedication = { med -> viewModel.addMedication(med) },
-                    onToggleActive = { id -> viewModel.toggleMedicationActive(id) },
-                    onDeleteMedication = { id -> viewModel.deleteMedication(id) }
-                )
-                Screen.Appointments -> AppointmentsScreen(
-                    appointments = appointments,
-                    onAddAppointment = { app -> viewModel.addAppointment(app) },
-                    onCancelAppointment = { id -> viewModel.cancelAppointment(id) }
-                )
-                Screen.Health -> HealthScreen(
-                    healthRecords = healthRecords,
-                    onSaveRecord = { rec -> viewModel.addHealthRecord(rec) }
-                )
-                Screen.Profile -> ProfileScreen(
-                    user = user,
-                    isOffline = isOffline,
-                    syncPending = syncPending,
-                    onUpdateProfile = { updated, onSaved ->
-                        viewModel.updateProfile(updated)
-                        onSaved()
-                    },
-                    isDemo = true,
-                    onToggleOfflineMode = { viewModel.toggleOfflineMode() },
-                    onLogout = onLogout
-                )
-                else -> DashboardScreen(
-                    user = user,
-                    reminders = reminders,
-                    appointments = appointments,
-                    onUpdateReminderStatus = { id, status -> viewModel.updateReminderStatus(id, status) },
-                    onSnoozeReminder = { id -> viewModel.snoozeReminder(id, 15) },
-                    onNavigateToMedications = { currentScreen = Screen.Medications },
-                    onNavigateToAppointments = { currentScreen = Screen.Appointments }
-                )
+                .padding(innerPadding),
+            label = "tab"
+        ) { screen ->
+            Box(Modifier.fillMaxSize()) {
+                when (screen) {
+                    Screen.Medications -> MedicationsScreen(
+                        medications = medications,
+                        onAddMedication = { med -> viewModel.addMedication(med) },
+                        onToggleActive = { id -> viewModel.toggleMedicationActive(id) },
+                        onDeleteMedication = { id -> viewModel.deleteMedication(id) }
+                    )
+                    Screen.Appointments -> AppointmentsScreen(
+                        appointments = appointments,
+                        onAddAppointment = { app -> viewModel.addAppointment(app) },
+                        onCancelAppointment = { id -> viewModel.cancelAppointment(id) }
+                    )
+                    Screen.Health -> HealthScreen(
+                        healthRecords = healthRecords,
+                        onSaveRecord = { rec -> viewModel.addHealthRecord(rec) }
+                    )
+                    Screen.Profile -> ProfileScreen(
+                        user = user,
+                        isOffline = isOffline,
+                        syncPending = syncPending,
+                        onUpdateProfile = { updated, onSaved ->
+                            viewModel.updateProfile(updated)
+                            onSaved()
+                        },
+                        isDemo = true,
+                        onToggleOfflineMode = { viewModel.toggleOfflineMode() },
+                        onLogout = onLogout
+                    )
+                    else -> DashboardScreen(
+                        user = user,
+                        reminders = reminders,
+                        appointments = appointments,
+                        healthRecords = healthRecords,
+                        onUpdateReminderStatus = { id, status -> viewModel.updateReminderStatus(id, status) },
+                        onSnoozeReminder = { id -> viewModel.snoozeReminder(id, 15) },
+                        onNavigateToMedications = { currentScreen = Screen.Medications },
+                        onNavigateToAppointments = { currentScreen = Screen.Appointments },
+                        onNavigateToHealth = { currentScreen = Screen.Health }
+                    )
+                }
             }
         }
     }

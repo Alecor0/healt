@@ -1,5 +1,11 @@
 package com.healmate.data.util
 
+enum class PainSeverity(val label: String) {
+    LEVE("Leve"),
+    MODERADO("Moderado"),
+    SEVERO("Severo")
+}
+
 /**
  * Validador clínico basado en estándares de salud (AHA, ADA, OMS)
  * para prevenir inconsistencias y anomalías fisiológicas (caso límite 4.6 en docs/requisitos.md).
@@ -65,6 +71,16 @@ object MedicalValidator {
             return Pair(false, "La escala de dolor debe ser un valor entre 1 y 10")
         }
         return Pair(true, "Válido")
+    }
+
+    /**
+     * Categoría de intensidad en la escala numérica de dolor (NRS):
+     * 1–3 leve, 4–6 moderado, 7–10 severo.
+     */
+    fun painSeverity(pain: Int): PainSeverity = when (pain.coerceIn(1, 10)) {
+        in 1..3 -> PainSeverity.LEVE
+        in 4..6 -> PainSeverity.MODERADO
+        else -> PainSeverity.SEVERO
     }
 
     /**

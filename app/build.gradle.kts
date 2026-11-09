@@ -20,6 +20,11 @@ android {
             "healthMateApiUrl debe ser una URL absoluta"
         }
         buildConfigField("String", "HEALTHMATE_API_URL", "\"$apiUrl\"")
+        val googleClientId = providers.gradleProperty("healthMateGoogleClientId").orElse("").get().trim()
+        require(googleClientId.isEmpty() || googleClientId.matches(Regex("[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com"))) {
+            "healthMateGoogleClientId debe ser el ID del cliente OAuth web de Google"
+        }
+        buildConfigField("String", "HEALTHMATE_GOOGLE_CLIENT_ID", "\"$googleClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -60,6 +65,9 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.ktor.client.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.credential.manager)
+    implementation(libs.androidx.credential.play.services)
+    implementation(libs.google.id)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

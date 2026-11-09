@@ -4,22 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.healmate.data.model.Medication
-import com.healmate.ui.theme.*
+import com.healmate.ui.components.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationsScreen(
     medications: List<Medication>,
@@ -29,95 +25,81 @@ fun MedicationsScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<Medication?>(null) }
 
     val filteredList = medications.filter {
         it.nombre.contains(searchQuery, ignoreCase = true) ||
-        it.dosis.contains(searchQuery, ignoreCase = true) ||
-        it.proposito.contains(searchQuery, ignoreCase = true)
+            it.dosis.contains(searchQuery, ignoreCase = true) ||
+            it.proposito.contains(searchQuery, ignoreCase = true)
     }
-
     val activeMedications = filteredList.filter { it.activo }
     val inactiveMedications = filteredList.filter { !it.activo }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = TealPrimary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar Medicamento")
-            }
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text("Agregar") }
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Buscador (RF-02)
             item {
-                Row(
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Buscar por nombre, dosis o propósito...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = null)
-                                }
+                    placeholder = { Text("Buscar por nombre, dosis o propósito") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
                             }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                }
-            }
-
-            // Sección: Medicamentos Activos
-            item {
-                Text(
-                    text = "Medicamentos Activos (${activeMedications.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                        }
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                    singleLine = true
                 )
             }
 
-            items(activeMedications) { med ->
+            item { SectionHeader("Activos (${activeMedications.size})") }
+
+            if (activeMedications.isEmpty()) {
+                item {
+                    EmptyState(
+                        Icons.Default.Medication,
+                        if (searchQuery.isBlank()) "No tienes medicamentos activos."
+                        else "Ningún medicamento coincide con \"$searchQuery\"."
+                    )
+                }
+            }
+            items(activeMedications, key = { it.id }) { med ->
                 MedicationCard(
                     medication = med,
                     onTogglePause = { onToggleActive(med.id) },
-                    onDelete = { onDeleteMedication(med.id) }
+                    onDelete = { pendingDelete = med }
                 )
             }
 
-            // Sección: Medicamentos Inactivos / Finalizados (Edge Case 4.4)
+            // Inactivos / Finalizados (caso límite 4.4)
             if (inactiveMedications.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Inactivos / Finalizados (${inactiveMedications.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextSecondary
-                    )
-                }
-
-                items(inactiveMedications) { med ->
+                item { SectionHeader("Inactivos / Finalizados (${inactiveMedications.size})") }
+                items(inactiveMedications, key = { it.id }) { med ->
                     MedicationCard(
                         medication = med,
                         onTogglePause = { onToggleActive(med.id) },
-                        onDelete = { onDeleteMedication(med.id) }
+                        onDelete = { pendingDelete = med }
                     )
                 }
             }
@@ -133,6 +115,19 @@ fun MedicationsScreen(
             }
         )
     }
+
+    pendingDelete?.let { med ->
+        ConfirmDialog(
+            title = "Eliminar ${med.nombre}",
+            message = "El medicamento dejará de aparecer en tu catálogo y no generará más recordatorios.",
+            confirmLabel = "Eliminar",
+            onConfirm = {
+                onDeleteMedication(med.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null }
+        )
+    }
 }
 
 @Composable
@@ -141,116 +136,81 @@ private fun MedicationCard(
     onTogglePause: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (medication.activo) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    val active = medication.activo
+    val accent = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+
+    HealthCard(
+        containerColor = if (active) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            if (medication.activo) TealPrimary.copy(alpha = 0.15f) else Color.LightGray.copy(alpha = 0.3f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Medication,
-                        contentDescription = null,
-                        tint = if (medication.activo) TealPrimary else Color.Gray
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = medication.nombre,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = if (medication.activo) TextPrimary else TextSecondary
-                    )
-                    Text(
-                        text = "${medication.dosis} • ${medication.viaAdministracion}",
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-                    if (medication.proposito.isNotEmpty()) {
-                        Text(
-                            text = "Propósito: ${medication.proposito}",
-                            fontSize = 12.sp,
-                            color = TealPrimary
-                        )
-                    }
-                }
-
-                // Estado Activo / Inactivo
-                Surface(
-                    color = if (medication.activo) GreenSuccess.copy(alpha = 0.15f) else Color.LightGray.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = if (medication.activo) "Activo" else "Pausado",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (medication.activo) GreenSuccess else Color.Gray
-                    )
-                }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Default.Medication, accent, size = 48.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(medication.nombre, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "${medication.dosis} · ${medication.viaAdministracion}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            StatusPill(
+                text = if (active) "Activo" else "Pausado",
+                color = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
+        if (medication.proposito.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = medication.proposito,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Frecuencia: ${medication.frecuencia}",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                    Text(
-                        text = "Próxima toma: ${medication.proximaHora}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (medication.activo) TextPrimary else TextSecondary
-                    )
-                }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            InfoItem(Icons.Default.Repeat, medication.frecuencia)
+            InfoItem(Icons.Default.Schedule, "Próxima: ${medication.proximaHora}")
+        }
+        medication.fechaFin?.let {
+            Spacer(Modifier.height(4.dp))
+            InfoItem(Icons.Default.EventBusy, "Hasta $it")
+        }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onTogglePause,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (medication.activo) "Pausar" else "Reactivar",
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Eliminar",
-                            tint = RedDanger
-                        )
-                    }
-                }
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onTogglePause) {
+                Icon(
+                    if (active) Icons.Default.PauseCircleOutline else Icons.Default.PlayCircleOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(if (active) "Pausar" else "Reactivar")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.DeleteOutline,
+                    contentDescription = "Eliminar ${medication.nombre}",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun InfoItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(4.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -262,82 +222,84 @@ private fun AddMedicationDialog(
     var nombre by remember { mutableStateOf("") }
     var dosis by remember { mutableStateOf("") }
     var frecuencia by remember { mutableStateOf("") }
-    var via by remember { mutableStateOf("Oral") }
     var proximaHora by remember { mutableStateOf("08:00") }
     var fechaInicio by remember { mutableStateOf("2026-10-13") }
     var fechaFin by remember { mutableStateOf("") }
     var proposito by remember { mutableStateOf("") }
+    var showErrors by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Registrar Medicamento", fontWeight = FontWeight.Bold) },
+        title = { Text("Registrar medicamento") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = nombre,
-                    onValueChange = { nombre = it },
-                    label = { Text("Nombre del Medicamento *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = dosis,
-                    onValueChange = { dosis = it },
-                    label = { Text("Dosis (ej. 500mg, 1 Tableta) *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = frecuencia,
-                    onValueChange = { frecuencia = it },
-                    label = { Text("Frecuencia (ej. Cada 8 horas) *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = proximaHora,
-                    onValueChange = { proximaHora = it },
-                    label = { Text("Horario de Toma (ej. 08:00)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = proposito,
-                    onValueChange = { proposito = it },
-                    label = { Text("Propósito (ej. Dolor de cabeza)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RequiredField(nombre, { nombre = it }, "Nombre *", showErrors)
+                RequiredField(dosis, { dosis = it }, "Dosis (ej. 500 mg) *", showErrors)
+                RequiredField(frecuencia, { frecuencia = it }, "Frecuencia (ej. cada 8 horas) *", showErrors)
+                OptionalField(proximaHora, { proximaHora = it }, "Horario de toma (ej. 08:00)")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OptionalField(fechaInicio, { fechaInicio = it }, "Inicio", Modifier.weight(1f))
+                    OptionalField(fechaFin, { fechaFin = it }, "Fin (opcional)", Modifier.weight(1f))
+                }
+                OptionalField(proposito, { proposito = it }, "Propósito (ej. dolor de cabeza)")
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (nombre.isNotBlank() && dosis.isNotBlank() && frecuencia.isNotBlank()) {
-                        val newMed = Medication(
-                            id = (100..999).random(),
-                            nombre = nombre,
-                            dosis = dosis,
-                            frecuencia = frecuencia,
-                            viaAdministracion = via,
-                            proximaHora = proximaHora.ifBlank { "08:00" },
-                            fechaInicio = fechaInicio,
-                            fechaFin = fechaFin.ifBlank { null },
-                            activo = true,
-                            proposito = proposito
-                        )
-                        onConfirm(newMed)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
-            ) {
-                Text("Guardar")
-            }
+            Button(onClick = {
+                if (nombre.isBlank() || dosis.isBlank() || frecuencia.isBlank()) {
+                    showErrors = true
+                    return@Button
+                }
+                onConfirm(
+                    Medication(
+                        id = (100..999).random(),
+                        nombre = nombre.trim(),
+                        dosis = dosis.trim(),
+                        frecuencia = frecuencia.trim(),
+                        proximaHora = proximaHora.ifBlank { "08:00" },
+                        fechaInicio = fechaInicio,
+                        fechaFin = fechaFin.ifBlank { null },
+                        activo = true,
+                        proposito = proposito.trim()
+                    )
+                )
+            }) { Text("Guardar") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun RequiredField(value: String, onChange: (String) -> Unit, label: String, showErrors: Boolean) {
+    val error = showErrors && value.isBlank()
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        isError = error,
+        supportingText = if (error) {
+            { Text("Campo obligatorio") }
+        } else null,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun OptionalField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier.fillMaxWidth()
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        modifier = modifier
     )
 }

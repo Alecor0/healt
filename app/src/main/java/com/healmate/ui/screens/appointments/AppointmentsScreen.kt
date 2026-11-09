@@ -8,214 +8,186 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.healmate.data.model.Appointment
 import com.healmate.data.model.AppointmentStatus
-import com.healmate.ui.theme.*
+import com.healmate.data.util.CalendarMath
+import com.healmate.ui.components.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Mes de la demostración: los datos de ejemplo están en octubre de 2026.
+private const val DEMO_YEAR = 2026
+private const val DEMO_MONTH = 10
+
 @Composable
 fun AppointmentsScreen(
     appointments: List<Appointment>,
     onAddAppointment: (Appointment) -> Unit,
     onCancelAppointment: (Int) -> Unit
 ) {
-    var selectedDay by remember { mutableStateOf(13) }
+    var selectedDay by remember { mutableIntStateOf(13) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var pendingCancel by remember { mutableStateOf<Appointment?>(null) }
 
-    // Días que tienen citas agendadas
     val daysWithAppointments = remember(appointments) {
-        appointments.mapNotNull { app ->
-            val dayPart = app.fechaHora.split(" ").firstOrNull()?.toIntOrNull()
-            dayPart
-        }.toSet()
+        appointments
+            .filter { it.estado != AppointmentStatus.CANCELADA }
+            .mapNotNull { it.dayOfMonth() }
+            .toSet()
     }
-
-    // Citas filtradas para el día seleccionado
-    val filteredAppointments = appointments.filter { app ->
-        val dayPart = app.fechaHora.split(" ").firstOrNull()?.toIntOrNull()
-        dayPart == selectedDay
-    }
+    val filteredAppointments = appointments.filter { it.dayOfMonth() == selectedDay }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = TealPrimary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Programar Cita")
-            }
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text("Programar") }
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Encabezado de Calendario Mensual (RF-04)
+            // Calendario mensual (RF-04)
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Octubre de 2026",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Row {
-                                IconButton(onClick = {}) { Icon(Icons.Default.ChevronLeft, contentDescription = null) }
-                                IconButton(onClick = {}) { Icon(Icons.Default.ChevronRight, contentDescription = null) }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        // Encabezados de días de la semana
-                        val daysOfWeek = listOf("Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá")
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            daysOfWeek.forEach { day ->
-                                Text(
-                                    text = day,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextSecondary,
-                                    modifier = Modifier.width(36.dp),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Cuadrícula de 31 días del mes
-                        Column {
-                            for (week in 0..4) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceAround
-                                ) {
-                                    for (dayOfWeek in 0..6) {
-                                        val dayNumber = week * 7 + dayOfWeek + 1
-                                        if (dayNumber <= 31) {
-                                            val isSelected = dayNumber == selectedDay
-                                            val hasAppointment = daysWithAppointments.contains(dayNumber)
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .background(
-                                                        when {
-                                                            isSelected -> TealPrimary
-                                                            hasAppointment -> TealPrimary.copy(alpha = 0.2f)
-                                                            else -> Color.Transparent
-                                                        },
-                                                        CircleShape
-                                                    )
-                                                    .clickable { selectedDay = dayNumber },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = dayNumber.toString(),
-                                                        fontSize = 13.sp,
-                                                        fontWeight = if (isSelected || hasAppointment) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                    if (hasAppointment && !isSelected) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(4.dp)
-                                                                .background(TealPrimary, CircleShape)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            Spacer(modifier = Modifier.size(36.dp))
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sección: Citas del día seleccionado
-            item {
-                Text(
-                    text = "Citas del $selectedDay de Octubre (${filteredAppointments.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                MonthCalendar(
+                    selectedDay = selectedDay,
+                    daysWithAppointments = daysWithAppointments,
+                    onSelectDay = { selectedDay = it }
                 )
             }
 
-            if (filteredAppointments.isNotEmpty()) {
-                items(filteredAppointments) { app ->
-                    AppointmentCard(
-                        appointment = app,
-                        onCancel = { onCancelAppointment(app.id) }
-                    )
-                }
-            } else {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No hay citas programadas para el $selectedDay de Octubre.",
-                                fontSize = 14.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                }
+            item { SectionHeader("$selectedDay de octubre · ${filteredAppointments.size} citas") }
+
+            if (filteredAppointments.isEmpty()) {
+                item { EmptyState(Icons.Default.EventAvailable, "No hay citas programadas para este día.") }
+            }
+            items(filteredAppointments, key = { it.id }) { app ->
+                AppointmentCard(appointment = app, onCancel = { pendingCancel = app })
             }
         }
     }
 
     if (showAddDialog) {
         AddAppointmentDialog(
-            defaultDay = selectedDay,
+            day = selectedDay,
             onDismiss = { showAddDialog = false },
             onConfirm = { newApp ->
                 onAddAppointment(newApp)
                 showAddDialog = false
             }
         )
+    }
+
+    pendingCancel?.let { app ->
+        ConfirmDialog(
+            title = "Cancelar cita",
+            message = "¿Cancelar la cita de ${app.especialidad} con ${app.especialista} (${app.fechaHora})?",
+            confirmLabel = "Cancelar cita",
+            onConfirm = {
+                onCancelAppointment(app.id)
+                pendingCancel = null
+            },
+            onDismiss = { pendingCancel = null }
+        )
+    }
+}
+
+/** "13 Oct 2026 - 10:00" → 13 */
+private fun Appointment.dayOfMonth(): Int? = fechaHora.split(" ").firstOrNull()?.toIntOrNull()
+
+@Composable
+private fun MonthCalendar(
+    selectedDay: Int,
+    daysWithAppointments: Set<Int>,
+    onSelectDay: (Int) -> Unit
+) {
+    val cells = remember { CalendarMath.monthCells(DEMO_YEAR, DEMO_MONTH) }
+    val colors = MaterialTheme.colorScheme
+
+    HealthCard {
+        Text("Octubre de 2026", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth()) {
+            listOf("Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá").forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        cells.chunked(7).forEach { week ->
+            Row(Modifier.fillMaxWidth()) {
+                week.forEach { day ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (day != null) {
+                            val selected = day == selectedDay
+                            val hasAppointment = day in daysWithAppointments
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (selected) colors.primary else Color.Transparent)
+                                    .clickable { onSelectDay(day) }
+                                    .semantics {
+                                        contentDescription = "$day de octubre" + if (hasAppointment) ", con citas" else ""
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = day.toString(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (selected || hasAppointment) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selected) colors.onPrimary else colors.onSurface
+                                    )
+                                    Box(
+                                        Modifier
+                                            .size(5.dp)
+                                            .background(
+                                                when {
+                                                    !hasAppointment -> Color.Transparent
+                                                    selected -> colors.onPrimary
+                                                    else -> colors.secondary
+                                                },
+                                                CircleShape
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -225,103 +197,60 @@ private fun AppointmentCard(
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
+    val cancelled = appointment.estado == AppointmentStatus.CANCELADA
+    val statusColor = when (appointment.estado) {
+        AppointmentStatus.CONFIRMADA -> MaterialTheme.colorScheme.secondary
+        AppointmentStatus.RECORDATORIO -> MaterialTheme.colorScheme.tertiary
+        AppointmentStatus.CANCELADA -> MaterialTheme.colorScheme.error
+        AppointmentStatus.PENDIENTE -> MaterialTheme.colorScheme.primary
+    }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    HealthCard(
+        containerColor = if (cancelled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(CyanSecondary.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Event,
-                        contentDescription = null,
-                        tint = CyanSecondary
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = appointment.especialidad,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "${appointment.especialista} • ${appointment.fechaHora}",
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-                    Text(
-                        text = appointment.lugar,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
-
-                // Estado de la Cita (RF-04)
-                Surface(
-                    color = when (appointment.estado) {
-                        AppointmentStatus.CONFIRMADA -> GreenSuccess.copy(alpha = 0.15f)
-                        AppointmentStatus.RECORDATORIO -> OrangeWarning.copy(alpha = 0.15f)
-                        AppointmentStatus.CANCELADA -> RedDanger.copy(alpha = 0.15f)
-                        else -> TealPrimary.copy(alpha = 0.15f)
-                    },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = appointment.estado.label,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (appointment.estado) {
-                            AppointmentStatus.CONFIRMADA -> GreenSuccess
-                            AppointmentStatus.RECORDATORIO -> OrangeWarning
-                            AppointmentStatus.CANCELADA -> RedDanger
-                            else -> TealPrimary
-                        }
-                    )
-                }
-            }
-
-            if (appointment.notas.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Default.Event, statusColor)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(appointment.especialidad, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Notas: ${appointment.notas}",
-                    fontSize = 12.sp,
-                    color = TextSecondary
+                    appointment.especialista,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(appointment.lugar)}"))
-                    context.startActivity(intent)
-                }) {
-                    Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver Mapa", fontSize = 12.sp)
-                }
-
-                if (appointment.estado != AppointmentStatus.CANCELADA) {
-                    TextButton(onClick = onCancel) {
-                        Text("Cancelar Cita", fontSize = 12.sp, color = RedDanger)
-                    }
+            StatusPill(appointment.estado.label, statusColor)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Detail(Icons.Default.Schedule, appointment.fechaHora.substringAfter(" - ", appointment.fechaHora))
+            Detail(Icons.Default.Place, appointment.lugar)
+        }
+        if (appointment.notas.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                appointment.notas,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(onClick = {
+                val uri = Uri.parse("geo:0,0?q=${Uri.encode(appointment.lugar)}")
+                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+            }) {
+                Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Ver mapa")
+            }
+            if (!cancelled) {
+                TextButton(onClick = onCancel) {
+                    Text("Cancelar cita", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -329,8 +258,17 @@ private fun AppointmentCard(
 }
 
 @Composable
+private fun Detail(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(4.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+    }
+}
+
+@Composable
 private fun AddAppointmentDialog(
-    defaultDay: Int,
+    day: Int,
     onDismiss: () -> Unit,
     onConfirm: (Appointment) -> Unit
 ) {
@@ -339,74 +277,55 @@ private fun AddAppointmentDialog(
     var hora by remember { mutableStateOf("11:00") }
     var lugar by remember { mutableStateOf("") }
     var notas by remember { mutableStateOf("") }
+    var showErrors by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Programar Cita Médica", fontWeight = FontWeight.Bold) },
+        title = { Text("Programar cita · $day de octubre") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = especialista,
-                    onValueChange = { especialista = it },
-                    label = { Text("Nombre del Especialista / Médico *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = especialidad,
-                    onValueChange = { especialidad = it },
-                    label = { Text("Especialidad Médica *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = hora,
-                    onValueChange = { hora = it },
-                    label = { Text("Hora de la Cita (ej. 10:30) *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = lugar,
-                    onValueChange = { lugar = it },
-                    label = { Text("Lugar / Centro Médico *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = notas,
-                    onValueChange = { notas = it },
-                    label = { Text("Notas o Instrucciones Previas") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                DialogField(especialista, { especialista = it }, "Especialista / médico *", showErrors)
+                DialogField(especialidad, { especialidad = it }, "Especialidad *", showErrors)
+                DialogField(hora, { hora = it }, "Hora (ej. 10:30) *", showErrors)
+                DialogField(lugar, { lugar = it }, "Lugar / centro médico *", showErrors)
+                DialogField(notas, { notas = it }, "Notas o indicaciones previas", showErrors = false)
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (especialista.isNotBlank() && especialidad.isNotBlank() && lugar.isNotBlank()) {
-                        val newApp = Appointment(
-                            id = (200..999).random(),
-                            especialista = especialista,
-                            especialidad = especialidad,
-                            fechaHora = "$defaultDay Oct 2026 - $hora",
-                            lugar = lugar,
-                            estado = AppointmentStatus.CONFIRMADA,
-                            notas = notas
-                        )
-                        onConfirm(newApp)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
-            ) {
-                Text("Confirmar Cita")
-            }
+            Button(onClick = {
+                if (listOf(especialista, especialidad, hora, lugar).any { it.isBlank() }) {
+                    showErrors = true
+                    return@Button
+                }
+                onConfirm(
+                    Appointment(
+                        id = (200..999).random(),
+                        especialista = especialista.trim(),
+                        especialidad = especialidad.trim(),
+                        fechaHora = "$day Oct 2026 - ${hora.trim()}",
+                        lugar = lugar.trim(),
+                        estado = AppointmentStatus.CONFIRMADA,
+                        notas = notas.trim()
+                    )
+                )
+            }) { Text("Confirmar") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Volver") } }
+    )
+}
+
+@Composable
+private fun DialogField(value: String, onChange: (String) -> Unit, label: String, showErrors: Boolean) {
+    val error = showErrors && value.isBlank()
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        isError = error,
+        supportingText = if (error) {
+            { Text("Campo obligatorio") }
+        } else null,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
     )
 }

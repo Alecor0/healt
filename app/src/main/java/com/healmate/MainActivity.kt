@@ -12,7 +12,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
+import androidx.credentials.exceptions.ClearCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.healmate.data.remote.selectGoogleIdToken
+import com.healmate.ui.screens.auth.GoogleProfileDialog
 import com.healmate.ui.screens.MainScreen
 import com.healmate.ui.screens.auth.LoginScreen
 import com.healmate.ui.screens.auth.RegisterScreen
@@ -20,6 +26,7 @@ import com.healmate.ui.screens.profile.ProfileScreen
 import com.healmate.ui.theme.HealthMateTheme
 import com.healmate.ui.viewmodel.AccountViewModel
 import com.healmate.ui.viewmodel.HealthMateViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -48,6 +55,7 @@ class MainActivity : ComponentActivity() {
                                 onLogout = {
                                     accountViewModel.logout()
                                     showRegistration = false
+                                    clearGoogleCredentials()
                                 },
                                 onClearError = accountViewModel::clearError,
                                 saving = account.busy,
@@ -65,9 +73,15 @@ class MainActivity : ComponentActivity() {
                         )
                         else -> LoginScreen(
                             configured = accountViewModel.isConfigured,
+                            googleConfigured = accountViewModel.isGoogleConfigured,
                             busy = account.busy,
                             error = account.error,
                             onLogin = accountViewModel::login,
+                            onGoogleLogin = {
+                                accountViewModel.loginWithGoogle { nonce ->
+                                    selectGoogleIdToken(this, BuildConfig.HEALTHMATE_GOOGLE_CLIENT_ID, nonce)
+                                }
+                            },
                             onNavigateToRegister = {
                                 accountViewModel.clearError()
                                 showRegistration = true
@@ -75,7 +89,27 @@ class MainActivity : ComponentActivity() {
                             onOpenDemo = { showDemo = true }
                         )
                     }
+                    if (account.googleProfileRequired) {
+                        GoogleProfileDialog(
+                            busy = account.busy,
+                            error = account.error,
+                            onConfirm = accountViewModel::completeGoogleProfile,
+                            onDismiss = accountViewModel::cancelGoogleProfile
+                        )
+                    }
                 }
+            }
+        }
+    }
+
+    private fun clearGoogleCredentials() {
+        if (!accountViewModel.isGoogleConfigured) return
+        lifecycleScope.launch {
+            try {
+                CredentialManager.create(this@MainActivity)
+                    .clearCredentialState(ClearCredentialStateRequest())
+            } catch (_: ClearCredentialException) {
+                // La sesión de HealthMate ya se cerró.
             }
         }
     }

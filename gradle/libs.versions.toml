@@ -13,6 +13,8 @@ lifecycleCompose = "2.8.7"
 navigationCompose = "2.8.4"
 ktor = "3.6.1"
 serializationJson = "1.12.0"
+credentials = "1.6.0"
+googleId = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,6 +38,9 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
 ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
+androidx-credential-manager = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credential-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+google-id = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleId" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

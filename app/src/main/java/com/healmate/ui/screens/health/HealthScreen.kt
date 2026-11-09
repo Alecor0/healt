@@ -5,8 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,16 +14,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healmate.data.model.HealthRecord
 import com.healmate.data.model.Mood
 import com.healmate.data.util.MedicalValidator
-import com.healmate.ui.theme.*
+import com.healmate.data.util.PainSeverity
+import com.healmate.data.util.VitalsErrors
+import com.healmate.data.util.VitalsFormValidator
+import com.healmate.data.util.VitalsInput
+import com.healmate.ui.components.*
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthScreen(
     healthRecords: List<HealthRecord>,
@@ -32,301 +34,266 @@ fun HealthScreen(
 ) {
     val context = LocalContext.current
 
-    var dolorEscala by remember { mutableStateOf(3f) }
+    var dolorEscala by remember { mutableFloatStateOf(3f) }
     var selectedMood by remember { mutableStateOf(Mood.FELIZ) }
     var presionArterial by remember { mutableStateOf("120/80") }
     var glucosa by remember { mutableStateOf("95") }
     var peso by remember { mutableStateOf("68.5") }
     var pulso by remember { mutableStateOf("78") }
-    var notas by remember { mutableStateOf("Me siento mucho mejor hoy pero aún persiste un dolor leve en el costado.") }
+    var notas by remember { mutableStateOf("") }
+    var errors by remember { mutableStateOf(VitalsErrors()) }
 
-    var bpError by remember { mutableStateOf<String?>(null) }
-    var glucoseError by remember { mutableStateOf<String?>(null) }
-    var pulseError by remember { mutableStateOf<String?>(null) }
+    val pain = dolorEscala.roundToInt()
+    val severity = MedicalValidator.painSeverity(pain)
+    val severityColor = severityColor(severity)
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Formulario de Registro Diario de Síntomas y Signos Vitales (RF-05)
+        // Registro diario de síntomas y signos vitales (RF-05)
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Registro Diario de Salud",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+            HealthCard {
+                Text("Registro diario", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "13 Oct 2026",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(20.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Nivel de dolor", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text("$pain/10", style = MaterialTheme.typography.titleMedium, color = severityColor)
+                    Spacer(Modifier.width(8.dp))
+                    StatusPill(severity.label, severityColor)
+                }
+                Slider(
+                    value = dolorEscala,
+                    onValueChange = { dolorEscala = it },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    colors = SliderDefaults.colors(
+                        thumbColor = severityColor,
+                        activeTrackColor = severityColor
                     )
-                    Text(
-                        text = "Fecha: 13 Oct 2026",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Sin dolor", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Máximo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Escala de dolor visual / numérica (1 a 10 - EVA/NRS)
-                    Text(
-                        text = "Nivel de Dolor (Escala EVA 1-10): ${dolorEscala.roundToInt()}",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                    Slider(
-                        value = dolorEscala,
-                        onValueChange = { dolorEscala = it },
-                        valueRange = 1f..10f,
-                        steps = 8,
-                        colors = SliderDefaults.colors(
-                            thumbColor = if (dolorEscala > 6) RedDanger else TealPrimary,
-                            activeTrackColor = if (dolorEscala > 6) RedDanger else TealPrimary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Selector de Estado de Ánimo
-                    Text(
-                        text = "Estado de Ánimo",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Mood.entries.forEach { mood ->
-                            val isSelected = selectedMood == mood
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { selectedMood = mood },
-                                label = { Text("${mood.icon} ${mood.displayName}", fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = TealPrimary,
-                                    selectedLabelColor = Color.White
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Signos Vitales con Validación Médica
-                    Text(
-                        text = "Signos Vitales",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = TealPrimary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = presionArterial,
-                            onValueChange = {
-                                presionArterial = it
-                                bpError = null
-                            },
-                            label = { Text("Presión (mmHg)", fontSize = 11.sp) },
-                            isError = bpError != null,
-                            supportingText = bpError?.let { { Text(it, fontSize = 10.sp, color = RedDanger) } },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = glucosa,
-                            onValueChange = {
-                                glucosa = it
-                                glucoseError = null
-                            },
-                            label = { Text("Glucosa (mg/dL)", fontSize = 11.sp) },
-                            isError = glucoseError != null,
-                            supportingText = glucoseError?.let { { Text(it, fontSize = 10.sp, color = RedDanger) } },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
+                Spacer(Modifier.height(16.dp))
+                Text("Estado de ánimo", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Mood.entries.forEach { mood ->
+                        MoodOption(
+                            mood = mood,
+                            selected = selectedMood == mood,
+                            onClick = { selectedMood = mood },
+                            modifier = Modifier.weight(1f)
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = peso,
-                            onValueChange = { peso = it },
-                            label = { Text("Peso (kg)", fontSize = 11.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = pulso,
-                            onValueChange = {
-                                pulso = it
-                                pulseError = null
-                            },
-                            label = { Text("Pulso (lpm)", fontSize = 11.sp) },
-                            isError = pulseError != null,
-                            supportingText = pulseError?.let { { Text(it, fontSize = 10.sp, color = RedDanger) } },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Notas Adicionales
-                    OutlinedTextField(
-                        value = notas,
-                        onValueChange = { notas = it },
-                        label = { Text("Notas Adicionales de Síntomas") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
+                Spacer(Modifier.height(20.dp))
+                Text("Signos vitales", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VitalField(
+                        value = presionArterial,
+                        onChange = { presionArterial = it; errors = errors.copy(presionArterial = null) },
+                        label = "Presión (mmHg)",
+                        error = errors.presionArterial,
+                        keyboardType = KeyboardType.Text,
+                        modifier = Modifier.weight(1f)
                     )
+                    VitalField(
+                        value = glucosa,
+                        onChange = { glucosa = it; errors = errors.copy(glucosa = null) },
+                        label = "Glucosa (mg/dL)",
+                        error = errors.glucosa,
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VitalField(
+                        value = peso,
+                        onChange = { peso = it; errors = errors.copy(peso = null) },
+                        label = "Peso (kg)",
+                        error = errors.peso,
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f)
+                    )
+                    VitalField(
+                        value = pulso,
+                        onChange = { pulso = it; errors = errors.copy(pulso = null) },
+                        label = "Pulso (lpm)",
+                        error = errors.pulso,
+                        keyboardType = KeyboardType.Number,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = notas,
+                    onValueChange = { notas = it },
+                    label = { Text("Notas de síntomas (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4
+                )
 
-                    Button(
-                        onClick = {
-                            // Validación médica estricta (Edge Case 4.6)
-                            val (bpValid, bpMsg) = MedicalValidator.validateBloodPressure(presionArterial)
-                            if (!bpValid) {
-                                bpError = bpMsg
-                                Toast.makeText(context, bpMsg, Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-
-                            val glucDouble = glucosa.toDoubleOrNull() ?: -1.0
-                            val (glucValid, glucMsg) = MedicalValidator.validateGlucose(glucDouble)
-                            if (!glucValid) {
-                                glucoseError = glucMsg
-                                Toast.makeText(context, glucMsg, Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-
-                            val pulseInt = pulso.toIntOrNull() ?: -1
-                            val (pulseValid, pulseMsg) = MedicalValidator.validatePulse(pulseInt)
-                            if (!pulseValid) {
-                                pulseError = pulseMsg
-                                Toast.makeText(context, pulseMsg, Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-
-                            val newRecord = HealthRecord(
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        // Validación médica antes de guardar (caso límite 4.6)
+                        val result = VitalsFormValidator.validate(VitalsInput(presionArterial, glucosa, peso, pulso))
+                        errors = result
+                        if (!result.isValid) return@Button
+                        onSaveRecord(
+                            HealthRecord(
                                 fecha = "13 Oct 2026",
-                                dolorEscala = dolorEscala.roundToInt(),
+                                dolorEscala = pain,
                                 estadoAnimo = selectedMood,
                                 presionArterial = presionArterial.trim(),
-                                glucosa = glucDouble,
-                                peso = peso.toDoubleOrNull() ?: 68.5,
-                                pulso = pulseInt,
-                                notas = notas
+                                glucosa = VitalsFormValidator.parseDecimal(glucosa)!!,
+                                peso = VitalsFormValidator.parseDecimal(peso)!!,
+                                pulso = pulso.trim().toInt(),
+                                notas = notas.trim()
                             )
-                            onSaveRecord(newRecord)
-                            Toast.makeText(context, "Registro de salud validado y guardado", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Guardar Registro", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
+                        )
+                        notas = ""
+                        Toast.makeText(context, "Registro guardado", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Guardar registro")
                 }
             }
         }
 
-        // Sección: Historial de Registros
-        item {
-            Text(
-                text = "Historial de Registros (${healthRecords.size})",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-        }
+        item { SectionHeader("Historial (${healthRecords.size})") }
 
-        items(healthRecords) { record ->
-            HealthRecordCard(record = record)
+        if (healthRecords.isEmpty()) {
+            item { EmptyState(Icons.Default.MonitorHeart, "Tus registros guardados aparecerán aquí.") }
+        }
+        items(healthRecords, key = { it.id }) { record ->
+            HealthRecordCard(record)
         }
     }
+}
+
+@Composable
+private fun severityColor(severity: PainSeverity): Color = when (severity) {
+    PainSeverity.LEVE -> MaterialTheme.colorScheme.secondary
+    PainSeverity.MODERADO -> MaterialTheme.colorScheme.tertiary
+    PainSeverity.SEVERO -> MaterialTheme.colorScheme.error
+}
+
+@Composable
+private fun MoodOption(mood: Mood, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) colors.primaryContainer else colors.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) colors.primary else colors.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(mood.icon, fontSize = 24.sp)
+            Text(
+                mood.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun VitalField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    error: String?,
+    keyboardType: KeyboardType,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        modifier = modifier
+    )
 }
 
 @Composable
 private fun HealthRecordCard(record: HealthRecord) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = record.estadoAnimo.icon, fontSize = 24.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(text = record.fecha, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text(text = "Ánimo: ${record.estadoAnimo.displayName}", fontSize = 12.sp, color = TextSecondary)
-                    }
-                }
-
-                Surface(
-                    color = if (record.dolorEscala > 5) RedDanger.copy(alpha = 0.15f) else GreenSuccess.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Dolor: ${record.dolorEscala}/10",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (record.dolorEscala > 5) RedDanger else GreenSuccess
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround
-            ) {
-                VitalBadge("Presión", record.presionArterial)
-                VitalBadge("Glucosa", "${record.glucosa} mg/dL")
-                VitalBadge("Peso", "${record.peso} kg")
-                VitalBadge("Pulso", "${record.pulso} lpm")
-            }
-
-            if (record.notas.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+    val severity = MedicalValidator.painSeverity(record.dolorEscala)
+    HealthCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(record.estadoAnimo.icon, fontSize = 28.sp)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(record.fecha, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Notas: ${record.notas}",
-                    fontSize = 12.sp,
-                    color = TextSecondary
+                    "Ánimo: ${record.estadoAnimo.displayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            StatusPill("Dolor ${record.dolorEscala}/10", severityColor(severity))
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            VitalStat("Presión", record.presionArterial, Modifier.weight(1f))
+            VitalStat("Glucosa", "${record.glucosa.formatVital()} mg/dL", Modifier.weight(1f))
+            VitalStat("Peso", "${record.peso.formatVital()} kg", Modifier.weight(1f))
+            VitalStat("Pulso", "${record.pulso} lpm", Modifier.weight(1f))
+        }
+        if (record.notas.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                record.notas,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun VitalBadge(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, fontSize = 11.sp, color = TextSecondary)
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+private fun VitalStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
+
+/** 95.0 → "95", 68.5 → "68.5" */
+private fun Double.formatVital(): String = if (this % 1.0 == 0.0) toInt().toString() else toString()

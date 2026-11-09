@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,133 +17,72 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.healmate.data.model.Appointment
+import com.healmate.data.model.AppointmentStatus
+import com.healmate.data.model.HealthRecord
 import com.healmate.data.model.Reminder
 import com.healmate.data.model.ReminderStatus
 import com.healmate.data.model.User
+import com.healmate.data.util.HealthTrends
 import com.healmate.data.util.MedicalValidator
-import com.healmate.ui.theme.*
+import com.healmate.ui.components.*
+import com.healmate.ui.theme.BrandMint
 
 @Composable
 fun DashboardScreen(
     user: User?,
     reminders: List<Reminder>,
     appointments: List<Appointment>,
+    healthRecords: List<HealthRecord>,
     onUpdateReminderStatus: (Int, ReminderStatus) -> Unit,
     onSnoozeReminder: (Int) -> Unit,
     onNavigateToMedications: () -> Unit,
-    onNavigateToAppointments: () -> Unit
+    onNavigateToAppointments: () -> Unit,
+    onNavigateToHealth: () -> Unit
 ) {
-    val context = LocalContext.current
-    val pendingReminders = reminders.filter { it.estado == ReminderStatus.PENDIENTE }
-    val todayAppointment = appointments.firstOrNull()
+    val pendingReminders = reminders.filter {
+        it.estado == ReminderStatus.PENDIENTE || it.estado == ReminderStatus.POSPUESTO
+    }
+    val nextAppointment = appointments.firstOrNull { it.estado != AppointmentStatus.CANCELADA }
 
     // Cálculo clínico de adherencia terapéutica (RF-06)
     val takenDoses = reminders.count { it.estado == ReminderStatus.TOMADO }
-    val totalDoses = reminders.size
-    val adherencePercentage = MedicalValidator.calculateAdherence(takenDoses, totalDoses)
+    val adherence = MedicalValidator.calculateAdherence(takenDoses, reminders.size)
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Tarjeta de Bienvenida y Adherencia Terapéutica
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = TealPrimary),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "¡Buenos días, ${user?.nombre ?: "Usuario"}!",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Hoy es 13 de Octubre de 2026",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Adherencia terapéutica: $adherencePercentage% ($takenDoses de $totalDoses tomas)",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
+            SummaryPanel(
+                name = user?.nombre ?: "Usuario",
+                takenDoses = takenDoses,
+                totalDoses = reminders.size,
+                adherence = adherence,
+                pending = pendingReminders.size
+            )
         }
 
-        // Sección 1: PRÓXIMOS RECORDATORIOS (RF-03)
+        // Próximos recordatorios (RF-03)
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "PRÓXIMOS RECORDATORIOS",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary
-                )
-                TextButton(onClick = onNavigateToMedications) {
-                    Text("Ver todos", color = TealPrimary, fontSize = 12.sp)
-                }
-            }
+            SectionHeader("Próximos recordatorios", "Ver todos", onNavigateToMedications)
         }
-
         if (pendingReminders.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = GreenSuccess
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("¡Excelente! Has completado todos tus recordatorios de medicación por hoy.", fontSize = 14.sp)
-                    }
-                }
+                EmptyState(Icons.Default.TaskAlt, "Completaste todos tus recordatorios de medicación de hoy.")
             }
         } else {
-            items(pendingReminders) { reminder ->
-                ReminderDashboardCard(
+            items(pendingReminders, key = { it.id }) { reminder ->
+                ReminderCard(
                     reminder = reminder,
                     onTake = { onUpdateReminderStatus(reminder.id, ReminderStatus.TOMADO) },
                     onSnooze = { onSnoozeReminder(reminder.id) },
@@ -154,281 +91,243 @@ fun DashboardScreen(
             }
         }
 
-        // Sección 2: PRÓXIMA CITA MÉDICA (RF-04)
+        // Próxima cita médica (RF-04)
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "PRÓXIMA CITA MÉDICA",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary
-                )
-                TextButton(onClick = onNavigateToAppointments) {
-                    Text("Calendario", color = TealPrimary, fontSize = 12.sp)
-                }
-            }
-
-            todayAppointment?.let { app ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(CyanSecondary.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MedicalServices,
-                                    contentDescription = null,
-                                    tint = CyanSecondary
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Cita ${app.especialidad}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                                Text(
-                                    text = "${app.especialista} • ${app.fechaHora}",
-                                    fontSize = 13.sp,
-                                    color = TextSecondary
-                                )
-                                Text(
-                                    text = app.lugar,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = {
-                                    val gmmIntentUri = Uri.parse("geo:0,0?q=${Uri.encode(app.lugar)}")
-                                    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                                    context.startActivity(mapIntent)
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Place,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Ver Mapa", fontSize = 12.sp)
-                            }
-                            Button(
-                                onClick = {
-                                    Toast.makeText(context, "Contactando a ${app.especialista}...", Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = CyanSecondary),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Call,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Llamar", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
+            SectionHeader("Próxima cita médica", "Calendario", onNavigateToAppointments)
+        }
+        item {
+            if (nextAppointment != null) {
+                NextAppointmentCard(nextAppointment)
+            } else {
+                EmptyState(Icons.Default.EventAvailable, "No tienes citas programadas.")
             }
         }
 
-        // Sección 3: RESUMEN DE SALUD SEMANAL (RF-06)
+        // Resumen de salud (RF-06)
         item {
-            Text(
-                text = "RESUMEN DE SALUD SEMANAL",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Evolución de Síntomas",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = "Tendencia de bienestar (Últimos 7 días)",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                    ) {
-                        val path = Path().apply {
-                            moveTo(0f, size.height * 0.7f)
-                            lineTo(size.width * 0.2f, size.height * 0.5f)
-                            lineTo(size.width * 0.4f, size.height * 0.65f)
-                            lineTo(size.width * 0.6f, size.height * 0.3f)
-                            lineTo(size.width * 0.8f, size.height * 0.25f)
-                            lineTo(size.width, size.height * 0.2f)
-                        }
-                        drawPath(
-                            path = path,
-                            color = TealPrimary,
-                            style = Stroke(width = 6f)
-                        )
-                        val points = listOf(
-                            Offset(0f, size.height * 0.7f),
-                            Offset(size.width * 0.2f, size.height * 0.5f),
-                            Offset(size.width * 0.4f, size.height * 0.65f),
-                            Offset(size.width * 0.6f, size.height * 0.3f),
-                            Offset(size.width * 0.8f, size.height * 0.25f),
-                            Offset(size.width, size.height * 0.2f)
-                        )
-                        points.forEach { pt ->
-                            drawCircle(color = CyanSecondary, radius = 8f, center = pt)
-                            drawCircle(color = Color.White, radius = 4f, center = pt)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        SymptomBadge("Dolor Promedio", "3/10", GreenSuccess)
-                        SymptomBadge("Ánimo", "Positivo", TealPrimary)
-                        SymptomBadge("Presión", "120/80", CyanSecondary)
-                    }
-                }
-            }
+            SectionHeader("Resumen de salud", "Registrar", onNavigateToHealth)
+        }
+        item {
+            HealthSummaryCard(healthRecords)
         }
     }
 }
 
 @Composable
-private fun ReminderDashboardCard(
+private fun SummaryPanel(
+    name: String,
+    takenDoses: Int,
+    totalDoses: Int,
+    adherence: Int,
+    pending: Int
+) {
+    BrandPanel {
+        BrandLabel("RESUMEN DIARIO")
+        Text(text = "Hola, $name", style = MaterialTheme.typography.headlineSmall)
+        Text("13 de octubre de 2026", style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Adherencia terapéutica", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "$takenDoses de $totalDoses tomas · $pending pendientes",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Text(
+                text = "$adherence%",
+                color = BrandMint,
+                style = MaterialTheme.typography.displaySmall
+            )
+        }
+        LinearProgressIndicator(
+            progress = { adherence / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp),
+            color = BrandMint,
+            trackColor = Color.White.copy(alpha = 0.18f),
+            strokeCap = StrokeCap.Round,
+            drawStopIndicator = {}
+        )
+    }
+}
+
+@Composable
+private fun ReminderCard(
     reminder: Reminder,
     onTake: () -> Unit,
     onSnooze: () -> Unit,
     onOmit: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(TealPrimary.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Medication,
-                        contentDescription = null,
-                        tint = TealPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = reminder.nombreMedicamento,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "${reminder.dosis} • ${reminder.horaProgramada}" +
-                                if (reminder.pospuestoMinutos > 0) " (+${reminder.pospuestoMinutos} min)" else "",
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-                }
+    HealthCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Default.Medication, MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(reminder.nombreMedicamento, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "${reminder.dosis} · ${reminder.horaProgramada}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Botones de acción conformes a RF-03 ("Tomada", "Pospuesta", "Omitida")
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            if (reminder.pospuestoMinutos > 0) {
+                StatusPill("+${reminder.pospuestoMinutos} min", MaterialTheme.colorScheme.tertiary)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        // Acciones conformes a RF-03: Tomada, Pospuesta, Omitida
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onTake,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary
+                )
             ) {
-                Button(
-                    onClick = onTake,
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenSuccess),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1.2f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Tomado", fontSize = 12.sp)
-                }
-
-                OutlinedButton(
-                    onClick = onSnooze,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Posponer", fontSize = 11.sp, color = OrangeWarning)
-                }
-
-                TextButton(
-                    onClick = onOmit,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(0.9f)
-                ) {
-                    Text("Omitir", fontSize = 11.sp, color = RedDanger)
-                }
+                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Tomada")
+            }
+            OutlinedButton(onClick = onSnooze, modifier = Modifier.weight(1f)) {
+                Text("Posponer 15 min", maxLines = 1)
+            }
+            TextButton(onClick = onOmit) {
+                Text("Omitir", color = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
 
 @Composable
-private fun SymptomBadge(label: String, value: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .background(color, CircleShape)
+private fun NextAppointmentCard(appointment: Appointment) {
+    val context = LocalContext.current
+    HealthCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Default.MedicalServices, MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(appointment.especialidad, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "${appointment.especialista} · ${appointment.fechaHora}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = appointment.lugar,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = {
+                    val uri = Uri.parse("geo:0,0?q=${Uri.encode(appointment.lugar)}")
+                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Ver mapa")
+            }
+            FilledTonalButton(
+                onClick = {
+                    Toast.makeText(context, "Contactando a ${appointment.especialista}...", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Llamar")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthSummaryCard(records: List<HealthRecord>) {
+    val latest = records.firstOrNull()
+    if (latest == null) {
+        EmptyState(Icons.Default.MonitorHeart, "Aún no hay registros de salud. Registra tus síntomas para ver tu tendencia.")
+        return
+    }
+    val trend = HealthTrends.painTrend(records)
+    val averagePain = HealthTrends.averagePain(records)
+
+    HealthCard {
+        Text("Evolución del dolor", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Últimos ${trend.size} registros · escala 1–10",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = "$label: ", fontSize = 12.sp, color = TextSecondary)
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        PainTrendChart(
+            points = trend,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp)
+                .semantics {
+                    contentDescription = "Gráfico de dolor: ${records.take(trend.size).reversed().joinToString { "${it.dolorEscala}" }}"
+                }
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            SummaryStat("Dolor promedio", "${averagePain ?: "-"}/10", Modifier.weight(1f))
+            SummaryStat("Ánimo", "${latest.estadoAnimo.icon} ${latest.estadoAnimo.displayName}", Modifier.weight(1f))
+            SummaryStat("Presión", latest.presionArterial, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PainTrendChart(points: List<Float>, modifier: Modifier = Modifier) {
+    val line = MaterialTheme.colorScheme.primary
+    val grid = MaterialTheme.colorScheme.outlineVariant
+    val dotFill = MaterialTheme.colorScheme.surface
+    Canvas(modifier) {
+        listOf(0f, 0.5f, 1f).forEach { level ->
+            val y = size.height * level
+            drawLine(grid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+        }
+        if (points.isEmpty()) return@Canvas
+        val pad = 6.dp.toPx()
+        val offsets = points.mapIndexed { index, value ->
+            val x = if (points.size == 1) size.width / 2 else pad + (size.width - 2 * pad) * index / (points.size - 1)
+            // Más dolor = punto más alto
+            Offset(x, pad + (size.height - 2 * pad) * (1f - value))
+        }
+        val path = Path().apply {
+            moveTo(offsets.first().x, offsets.first().y)
+            offsets.drop(1).forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(path, line, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+        offsets.forEach {
+            drawCircle(line, radius = 5.dp.toPx(), center = it)
+            drawCircle(dotFill, radius = 2.5.dp.toPx(), center = it)
+        }
+    }
+}
+
+@Composable
+private fun SummaryStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
     }
 }

@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,14 +14,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.healmate.data.model.User
 import com.healmate.data.util.isBirthDateFormat
-import com.healmate.ui.theme.*
+import com.healmate.ui.components.BrandLabel
+import com.healmate.ui.components.BrandPanel
+import com.healmate.ui.theme.BrandInk
+import com.healmate.ui.theme.BrandMint
 
 @Composable
 fun ProfileScreen(
@@ -48,58 +49,44 @@ fun ProfileScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Cabecera del Perfil (RF-01)
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            BrandPanel {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(TealPrimary, CircleShape),
+                        modifier = Modifier.size(52.dp)
+                            .background(BrandMint.copy(alpha = 0.16f), MaterialTheme.shapes.medium),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
+                        Icon(Icons.Default.Person, contentDescription = null, tint = BrandMint)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        BrandLabel("MI PERFIL")
+                        Text(
+                            text = user?.nombre ?: "Usuario",
+                            style = MaterialTheme.typography.headlineSmall
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = user?.nombre ?: "Usuario",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                }
+                user?.let {
+                    Text(it.email, style = MaterialTheme.typography.bodyMedium)
+                }
+                FilledTonalButton(
+                    onClick = {
+                        onClearError()
+                        showEditDialog = true
+                    },
+                    enabled = user != null && !saving,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = BrandMint,
+                        contentColor = BrandInk
                     )
-                    Text(
-                        text = user?.email ?: "",
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = {
-                            onClearError()
-                            showEditDialog = true
-                        },
-                        enabled = user != null && !saving,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Editar Perfil Médico")
-                    }
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Editar perfil")
                 }
             }
         }
@@ -109,24 +96,28 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Ficha Médica y Antropométrica",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "Ficha de salud",
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    ProfileRow("Fecha de Nacimiento", user?.fechaNacimiento ?: "No registrada")
-                    ProfileRow("Peso", user?.peso?.let { "$it kg" } ?: "Sin registrar")
-                    ProfileRow("Estatura", user?.altura?.let { "$it cm" } ?: "Sin registrar")
-                    ProfileRow("Alergias conocidas", user?.alergias.orEmpty().ifBlank { "Sin registrar" })
-                    ProfileRow("Condiciones crónicas", user?.condicionesCronicas.orEmpty().ifBlank { "Sin registrar" })
-                    ProfileRow("Contacto de emergencia", user?.contactoEmergencia.orEmpty().ifBlank { "Sin registrar" })
+                    val fields = listOf(
+                        "Fecha de nacimiento" to (user?.fechaNacimiento ?: "Sin registrar"),
+                        "Peso" to (user?.peso?.let { "$it kg" } ?: "Sin registrar"),
+                        "Estatura" to (user?.altura?.let { "$it cm" } ?: "Sin registrar"),
+                        "Alergias conocidas" to user?.alergias.orEmpty().ifBlank { "Sin registrar" },
+                        "Condiciones crónicas" to user?.condicionesCronicas.orEmpty().ifBlank { "Sin registrar" },
+                        "Contacto de emergencia" to user?.contactoEmergencia.orEmpty().ifBlank { "Sin registrar" }
+                    )
+                    fields.forEachIndexed { index, (label, value) ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        ProfileRow(label, value)
+                    }
                 }
             }
         }
@@ -136,15 +127,15 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "Conectividad y Exportación",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -164,7 +155,7 @@ fun ProfileScreen(
                                     if (syncPending) "Hay acciones en la cola de demostración." else "Modo sin conexión simulado."
                                 } else "Demostración con datos temporales.",
                                 fontSize = 12.sp,
-                                color = TextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Switch(
@@ -187,7 +178,10 @@ fun ProfileScreen(
                             ).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanSecondary),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
+                        ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.PictureAsPdf, contentDescription = null)
@@ -203,29 +197,29 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = TealPrimary)
+                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Seguridad y Protección de Datos",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Usa datos ficticios en la demostración.",
                         fontSize = 12.sp,
-                        color = TextSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { showArcoDialog = true }) {
-                        Text("Derechos ARCO (Acceso, Rectificación, Cancelación, Oposición)", fontSize = 12.sp, color = TealPrimary)
+                        Text("Derechos ARCO (Acceso, Rectificación, Cancelación, Oposición)", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -237,7 +231,10 @@ fun ProfileScreen(
                 onClick = onLogout,
                 enabled = !saving,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = RedDanger),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
@@ -286,11 +283,11 @@ private fun ProfileRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = label, modifier = Modifier.weight(1f), fontSize = 13.sp, color = TextSecondary)
-        Text(text = value, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(text = label, modifier = Modifier.weight(1f), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -404,7 +401,7 @@ private fun EditProfileDialog(
                     )
                     onConfirm(updated)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = TealPrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(if (saving) "Guardando…" else "Guardar cambios")
             }

@@ -1,165 +1,146 @@
 package com.healmate.ui.screens.auth
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.healmate.ui.theme.TealPrimary
-import com.healmate.ui.theme.TextSecondary
+import com.healmate.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     configured: Boolean,
+    googleConfigured: Boolean,
     busy: Boolean,
     error: String?,
     onLogin: (String, String) -> Unit,
+    onGoogleLogin: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onOpenDemo: () -> Unit
+) {
+    var showEmail by rememberSaveable(googleConfigured) { mutableStateOf(!googleConfigured) }
+
+    AuthLayout(
+        title = "Tu salud, a tu ritmo",
+        description = "Medicamentos, citas y registros de salud en un mismo espacio.",
+        formTitle = "Bienvenido"
+    ) {
+        OutlinedButton(
+            onClick = onGoogleLogin,
+            enabled = googleConfigured && !busy,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            shape = RoundedCornerShape(4.dp),
+            border = BorderStroke(1.dp, Color(0xFF747775)),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = Color(0xFF1F1F1F)
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_google_sign_in),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("Continuar con Google", fontWeight = FontWeight.Medium)
+        }
+
+        when {
+            error != null -> AuthMessage(error, isError = true)
+            !configured -> AuthMessage("El servidor aún no está configurado.", isError = false)
+            !googleConfigured -> AuthMessage("El acceso con Google aún no está configurado.", isError = false)
+        }
+        if (busy) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("Iniciando sesión…", style = MaterialTheme.typography.bodySmall)
+        }
+        if (showEmail) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            EmailLoginFields(configured && !busy, onLogin, onNavigateToRegister)
+        } else {
+            TextButton(
+                onClick = { showEmail = true },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Usar correo y contraseña")
+            }
+        }
+        TextButton(
+            onClick = onOpenDemo,
+            enabled = !busy,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text("Explorar demostración")
+        }
+    }
+}
+
+@Composable
+private fun EmailLoginFields(
+    enabled: Boolean,
+    onLogin: (String, String) -> Unit,
+    onNavigateToRegister: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .safeDrawingPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState()),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // App Logo Badge
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(TealPrimary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MedicalServices,
-                        contentDescription = "HealthMate",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "HealthMate",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TealPrimary
+    OutlinedTextField(
+        value = email,
+        onValueChange = { email = it },
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        label = { Text("Correo electrónico") },
+        leadingIcon = { Icon(Icons.Default.Mail, contentDescription = null) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+    OutlinedTextField(
+        value = password,
+        onValueChange = { password = it },
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        label = { Text("Contraseña") },
+        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+        trailingIcon = {
+            IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
                 )
-                Text(
-                    text = "Sistema de Gestión Personal de Salud",
-                    fontSize = 12.sp,
-                    color = TextSecondary
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    enabled = configured && !busy,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    label = { Text("Correo Electrónico") },
-                    leadingIcon = { Icon(Icons.Default.Mail, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    enabled = configured && !busy,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    label = { Text("Contraseña") },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                            )
-                        }
-                    },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                val message = error ?: if (!configured) "El servidor aún no está configurado." else null
-                if (message != null) {
-                    Text(message, color = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                Button(
-                    onClick = { onLogin(email, password) },
-                    enabled = configured && !busy && email.isNotBlank() && password.isNotBlank(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = TealPrimary),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(if (busy) "Iniciando sesión…" else "Iniciar sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("¿No tienes cuenta?", fontSize = 13.sp, color = TextSecondary)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(onClick = onNavigateToRegister, enabled = configured && !busy) {
-                        Text("Regístrate aquí", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TealPrimary)
-                    }
-                }
-                TextButton(onClick = onOpenDemo, enabled = !busy) {
-                    Text("Explorar demostración")
-                }
             }
-        }
+        },
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+    Button(
+        onClick = { onLogin(email, password) },
+        enabled = enabled && email.isNotBlank() && password.isNotBlank(),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+    ) {
+        Text("Iniciar sesión")
+    }
+    TextButton(onClick = onNavigateToRegister, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Text("Crear una cuenta con correo")
     }
 }
