@@ -55,6 +55,15 @@ Compila desde `frontend/` con `.\gradlew.bat :app:assembleDebug` y copia `app/bu
 
 En el plan gratuito la API se duerme tras unos 15 minutos sin uso; la primera petición después puede tardar hasta un minuto.
 
+## Página de descarga
+
+[web/index.html](web/index.html) es la página para descargar la app. El botón apunta a `https://github.com/Alecor0/healt/releases/latest/download/HealthMate.apk`, así que cada versión se publica como un release de GitHub:
+
+1. Compila el APK con la URL de la API de Render (ver arriba).
+2. En GitHub, crea un release nuevo (por ejemplo `v1.0`) y adjunta el APK renombrado exactamente como `HealthMate.apk`. El repositorio debe ser público para que cualquiera pueda descargarlo.
+
+[render.yaml](render.yaml) publica `web/` como el sitio estático `healthmate-descarga`; al sincronizar el Blueprint, Render le asigna su propia URL.
+
 ## Activar el inicio de sesión con Google
 
 1. Configura Google Auth Platform en tu proyecto de Google Cloud. Si usas la audiencia externa en modo de prueba, agrega la cuenta que usará el emulador como usuario de prueba.

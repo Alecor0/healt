@@ -24,3 +24,12 @@ services:
       # Opcional: ID de cliente web de Google para "Continuar con Google".
       - key: GOOGLE_CLIENT_ID
         sync: false
+
+  # Página de descarga de la app (sitio estático gratuito).
+  - type: web
+    name: healthmate-descarga
+    runtime: static
+    rootDir: web
+    buildCommand: ""
+    staticPublishPath: .
+    autoDeployTrigger: commit

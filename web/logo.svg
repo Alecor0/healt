@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Logo de HealthMate">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#142730"/>
+      <stop offset="1" stop-color="#204765"/>
+    </linearGradient>
+    <linearGradient id="corazon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9DE2B6"/>
+      <stop offset="1" stop-color="#A9D8F4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fondo)"/>
+  <path fill="url(#corazon)" d="M256 408 C120 318 96 238 96 198 C96 148 136 112 182 112 C214 112 240 128 256 154 C272 128 298 112 330 112 C376 112 416 148 416 198 C416 238 392 318 256 408 Z"/>
+  <polyline fill="none" stroke="#142730" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" points="138,244 204,244 230,188 262,308 292,220 308,244 374,244"/>
+</svg>
