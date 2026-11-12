@@ -1,5 +1,5 @@
 """Modelos mapeados al esquema existente en Neon (usuarios, perfiles, roles...)."""
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -115,3 +115,87 @@ class GoogleChallenge(Base):
 
     nonce: Mapped[UUID] = mapped_column(primary_key=True)
     vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class MedicationCatalog(Base):
+    """Catálogo compartido de nombres de medicamentos."""
+
+    __tablename__ = "medicamentos"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    nombre: Mapped[str] = mapped_column(String(255))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    compuesto_activo: Mapped[str | None] = mapped_column(String(255))
+
+
+class UserMedication(Base):
+    __tablename__ = "usuario_medicamento"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    usuario_id: Mapped[UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+    medicamento_id: Mapped[UUID] = mapped_column(ForeignKey("medicamentos.id", ondelete="RESTRICT"))
+    dosis: Mapped[str | None] = mapped_column(String(100))
+    frecuencia: Mapped[str | None] = mapped_column(String(100))
+    fecha_inicio: Mapped[date | None]
+    fecha_fin: Mapped[date | None]
+    activo: Mapped[bool] = mapped_column(server_default=true())
+    via_administracion: Mapped[str | None] = mapped_column(String(50))
+    proposito: Mapped[str | None] = mapped_column(String(255))
+    # Borrado lógico: conserva el historial de dosis (caso límite 4.5).
+    eliminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReminderSchedule(Base):
+    __tablename__ = "recordatorios"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    usuario_medicamento_id: Mapped[UUID] = mapped_column(
+        ForeignKey("usuario_medicamento.id", ondelete="CASCADE")
+    )
+    hora: Mapped[time]
+    dias_semana: Mapped[str | None] = mapped_column(String(20))
+    activo: Mapped[bool] = mapped_column(server_default=true())
+
+
+class Dose(Base):
+    __tablename__ = "dosis_tomada"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    recordatorio_id: Mapped[UUID] = mapped_column(ForeignKey("recordatorios.id", ondelete="CASCADE"))
+    fecha_programada: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    fecha_confirmacion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    estado: Mapped[str] = mapped_column(String(50), server_default="pendiente")
+    pospuesto_minutos: Mapped[int] = mapped_column(server_default="0")
+
+
+class Appointment(Base):
+    __tablename__ = "citas"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    paciente_id: Mapped[UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+    especialista: Mapped[str | None] = mapped_column(String(255))
+    especialidad: Mapped[str | None] = mapped_column(String(100))
+    lugar: Mapped[str | None] = mapped_column(String(255))
+    fecha_hora: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    motivo: Mapped[str | None] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(50), server_default="pendiente")
+
+
+class VitalSigns(Base):
+    """Registro diario de síntomas y signos vitales (RF-05)."""
+
+    __tablename__ = "signos_vitales"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    paciente_id: Mapped[UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+    presion_sistolica: Mapped[int | None]
+    presion_diastolica: Mapped[int | None]
+    frecuencia_cardiaca: Mapped[int | None]
+    glucosa: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    peso: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    dolor: Mapped[int | None]
+    estado_animo: Mapped[str | None] = mapped_column(String(20))
+    notas: Mapped[str | None] = mapped_column(Text)
+    fecha_registro: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.current_timestamp()
+    )

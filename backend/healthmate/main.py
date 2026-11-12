@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .db import make_engine
-from .routers import auth, users
+from .routers import appointments, auth, health, medications, users
 
 
 def create_app(
@@ -35,6 +35,9 @@ def create_app(
     app = FastAPI(title="HealthMate API", lifespan=lifespan)
     app.include_router(auth.router)
     app.include_router(users.router)
+    app.include_router(medications.router)
+    app.include_router(appointments.router)
+    app.include_router(health.router)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError):

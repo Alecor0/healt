@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,11 @@ def get_secret(request: Request) -> str:
 Db = Annotated[AsyncSession, Depends(get_db)]
 Secret = Annotated[str, Depends(get_secret)]
 bearer = HTTPBearer(auto_error=False)
+
+
+def no_store(response: Response) -> None:
+    """Los datos de salud no deben quedar en cachés intermedias."""
+    response.headers["Cache-Control"] = "no-store"
 
 
 def unauthorized() -> HTTPException:
