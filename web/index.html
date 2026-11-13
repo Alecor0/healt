@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Descargar HealthMate</title>
+  <meta name="description" content="Descarga HealthMate para Android: medicamentos, citas y registros de salud en un solo lugar.">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --night: #0d1b23;
+      --ink: #142730;
+      --blue: #204765;
+      --sky: #a9d8f4;
+      --mint: #9de2b6;
+      --text: #e8f1f6;
+      --muted: #9fb4c1;
+      --line: rgba(169, 216, 244, 0.14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(60rem 40rem at 85% -10%, rgba(32, 71, 101, 0.75), transparent 60%),
+        radial-gradient(40rem 30rem at -10% 110%, rgba(32, 87, 98, 0.35), transparent 60%),
+        var(--night);
+      line-height: 1.55;
+    }
+    main { max-width: 44rem; margin: 0 auto; padding: 3.5rem 1rem 3rem; }
+    header { display: flex; align-items: center; gap: 1rem; }
+    header svg { flex: none; }
+    h1 { margin: 0; font-size: 2rem; letter-spacing: -0.02em; }
+    .lead { color: var(--muted); font-size: 1.125rem; margin: 1.5rem 0 2rem; }
+    .download {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      padding: 0.95rem 1.6rem; border-radius: 999px;
+      background: linear-gradient(135deg, var(--mint), var(--sky));
+      color: var(--ink); font-weight: 700; font-size: 1.05rem; text-decoration: none;
+      box-shadow: 0 10px 30px rgba(157, 226, 182, 0.18);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .download:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(157, 226, 182, 0.28); }
+    .download:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-top: 0.8rem; }
+    section {
+      margin-top: 2.5rem; padding: 1.5rem;
+      border: 1px solid var(--line); border-radius: 1.25rem;
+      background: linear-gradient(160deg, rgba(20, 39, 48, 0.85), rgba(29, 56, 75, 0.55));
+    }
+    h2 { margin: 0 0 1rem; font-size: 1.15rem; }
+    ul, ol { margin: 0; padding-left: 1.25rem; }
+    li + li { margin-top: 0.5rem; }
+    li::marker { color: var(--mint); }
+    .note { color: var(--muted); font-size: 0.9rem; margin: 1rem 0 0; }
+    footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 3rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <svg width="64" height="64" viewBox="0 0 512 512" aria-hidden="true">
+        <defs>
+          <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#142730"/><stop offset="1" stop-color="#204765"/></linearGradient>
+          <linearGradient id="corazon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9DE2B6"/><stop offset="1" stop-color="#A9D8F4"/></linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#fondo)"/>
+        <path fill="url(#corazon)" d="M256 408 C120 318 96 238 96 198 C96 148 136 112 182 112 C214 112 240 128 256 154 C272 128 298 112 330 112 C376 112 416 148 416 198 C416 238 392 318 256 408 Z"/>
+        <polyline fill="none" stroke="#142730" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" points="138,244 204,244 230,188 262,308 292,220 308,244 374,244"/>
+      </svg>
+      <h1>HealthMate</h1>
+    </header>
+
+    <p class="lead">Tus medicamentos, dosis del día, citas médicas y registros de salud en un solo lugar.</p>
+
+    <a class="download" href="https://github.com/Alecor0/healt/releases/latest/download/HealthMate.apk" download>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+      Descargar para Android
+    </a>
+    <p class="meta">Archivo APK · Requiere Android 7.0 o superior</p>
+
+    <section>
+      <h2>Qué puedes hacer</h2>
+      <ul>
+        <li>Crear tu cuenta y mantener tu perfil médico personal.</li>
+        <li>Registrar tus medicamentos y marcar las dosis del día.</li>
+        <li>Programar tus citas con especialistas.</li>
+        <li>Anotar síntomas y signos vitales y ver su evolución.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Cómo instalarla</h2>
+      <ol>
+        <li>Abre esta página desde tu teléfono Android y pulsa <strong>Descargar para Android</strong>.</li>
+        <li>Abre el archivo <strong>HealthMate.apk</strong> desde las descargas.</li>
+        <li>Si Android lo pide, permite <strong>instalar apps de esta fuente</strong> para tu navegador o gestor de archivos.</li>
+        <li>Pulsa <strong>Instalar</strong> y abre HealthMate.</li>
+      </ol>
+      <p class="note">La app no se distribuye por Google Play, por eso Android muestra este aviso. La primera vez que inicies sesión el servidor puede tardar hasta un minuto en responder.</p>
+    </section>
+
+    <footer>HealthMate · Sistema de gestión personal de salud y medicamentos</footer>
+  </main>
+</body>
+</html>
